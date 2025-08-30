@@ -1,6 +1,8 @@
 import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
+dayjs.extend(customParseFormat);
 import { sendWhatsAppText } from "./whatsappClient";
-import { persistAppointment, StoredAppointment } from "./storage";
+import { persistAppointment, readAppointments, StoredAppointment } from "./storage";
 
 export type AppointmentSessionState =
   | "awaitingName"
@@ -34,6 +36,11 @@ function isValidDateDDMMYYYY(input: string): boolean {
   return dayjs(input, "DD/MM/YYYY", true).isValid();
 }
 
+function dayOfWeekLabel(dateDDMMYYYY: string): string {
+  const d = dayjs(dateDDMMYYYY, "DD/MM/YYYY", true);
+  return d.isValid() ? d.format("dddd") : "";
+}
+
 export async function startConversation(
   userPhone: string,
   phoneNumberId?: string
@@ -60,10 +67,13 @@ export async function handleUserReply(
   if (!existing) {
     if (/^\s*book\s*$/i.test(message)) {
       await startConversation(userPhone, phoneNumberId);
+    } else if (/^\s*view\s*$/i.test(message)) {
+      await showAppointments(userPhone, phoneNumberId);
     } else {
       const defaultMsg =
-        "Hello! Welcome to Shivas Eye Care \n" +
-        "To book an appointment, please reply with:\n👉 book";
+        "Hello! Welcome to Shivas Eye Care \n\n" +
+        "To book an appointment, please reply with:\n👉 book\n\n" +
+        "To view your appointments, reply with:\n👉 view";
       await sendWhatsAppText({ to: userPhone, phoneNumberId, body: defaultMsg });
     }
     return;
@@ -71,6 +81,12 @@ export async function handleUserReply(
 
   const session = existing;
   session.lastInteractionUnixMs = now;
+
+  // Allow viewing appointments anytime without changing flow
+  if (/^\s*view\s*$/i.test(message)) {
+    await showAppointments(userPhone, phoneNumberId);
+    return;
+  }
 
   if (session.state === "awaitingName") {
     const name = message.replace(/[^\p{L} .'-]/gu, "").trim();
@@ -113,8 +129,9 @@ export async function handleUserReply(
     session.selectedDate = chosen.format("DD/MM/YYYY");
     session.state = "awaitingTime";
     const slotsList = availableSlots.map((s, i) => `${i + 1}. ${s}`).join("\n");
+    const dayLabel = dayOfWeekLabel(session.selectedDate);
     const slotsMsg =
-      `Perfect! 🎯\n\nHere are the available time slots for ${session.selectedDate}:\n\n` +
+      `Perfect! 🎯\n\nHere are the available time slots for ${session.selectedDate} (${dayLabel}):\n\n` +
       `${slotsList}\n\n👉 Please reply with the time you prefer (e.g., 10:30 AM).`;
     await sendWhatsAppText({ to: userPhone, phoneNumberId, body: slotsMsg });
     return;
@@ -136,10 +153,11 @@ export async function handleUserReply(
       (s) => normalizeTimeLabel(s) === normalized
     );
     session.state = "awaitingConfirm";
+    const dayLabel = dayOfWeekLabel(session.selectedDate || "");
     const preview =
       "✅ Thank you! Here are your appointment details:\n\n" +
       `👤 Name: ${session.name}\n` +
-      `📅 Date: ${session.selectedDate}\n` +
+      `📅 Date: ${session.selectedDate} (${dayLabel})\n` +
       `🕒 Time: ${session.selectedTime}\n\n` +
       "👉 Please confirm by replying Yes or No.";
     await sendWhatsAppText({ to: userPhone, phoneNumberId, body: preview });
@@ -159,11 +177,12 @@ export async function handleUserReply(
         createdAtIso: new Date().toISOString(),
       };
       await persistAppointment(appt);
+      const dayLabel = dayOfWeekLabel(session.selectedDate || "");
       const confirm =
         "🎉 Your appointment has been successfully booked!\n\n" +
         "📍 Appointment Confirmation – Shivas Eye Care\n" +
         `👤 Name: ${session.name}\n` +
-        `📅 Date: ${session.selectedDate}\n` +
+        `📅 Date: ${session.selectedDate} (${dayLabel})\n` +
         `🕒 Time: ${session.selectedTime}\n\n` +
         "🏥 Hospital Details:\n" +
         "Shivas Eye Care\n" +
@@ -189,6 +208,33 @@ export async function handleUserReply(
     });
     return;
   }
+}
+
+async function showAppointments(
+  userPhone: string,
+  phoneNumberId?: string
+): Promise<void> {
+  const list = await readAppointments();
+  const mine = list.filter((a) => a.userPhone === userPhone);
+  if (mine.length === 0) {
+    await sendWhatsAppText({
+      to: userPhone,
+      phoneNumberId,
+      body: "You don't have any appointments yet. Reply with 'book' to create one.",
+    });
+    return;
+  }
+  const lines = mine
+    .slice(-5)
+    .map(
+      (a, i) => `${i + 1}. ${a.date} at ${a.time} — ${a.serviceTitle} (for ${a.name})`
+    )
+    .join("\n");
+  const msg =
+    "Here are your recent appointments:\n\n" +
+    lines +
+    "\n\nReply 'book' to schedule another appointment.";
+  await sendWhatsAppText({ to: userPhone, phoneNumberId, body: msg });
 }
 
 

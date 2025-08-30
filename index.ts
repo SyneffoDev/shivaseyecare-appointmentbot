@@ -1,6 +1,6 @@
 import express, { Request, Response } from "express";
 import dotenv from "dotenv";
-import { startConversation, handleUserReply } from "./src/appointmentFlow";
+import { handleUserReply } from "./src/appointmentFlow";
 import { readAppointments } from "./src/storage";
 import { sendWhatsAppText } from "./src/whatsappClient";
 
@@ -78,14 +78,6 @@ app.post("/webhook", (req: Request, res: Response) => {
           const text: string | undefined =
             type === "text" && message.text ? message.text.body : undefined;
           console.log("[WhatsApp] from=%s type=%s text=%s", from, type, text);
-
-          // Conversational flow (replace Flows): start on greeting
-          if (from && text && /^\s*(hi|hello)\b/i.test(text)) {
-            startConversation(from, phoneNumberIdFromWebhook).catch((err) =>
-              console.error("startConversation error:", err)
-            );
-            continue;
-          }
 
           if (from && text) {
             handleUserReply(from, text, phoneNumberIdFromWebhook).catch((err) =>

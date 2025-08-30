@@ -1,16 +1,16 @@
 import axios from "axios";
 
-const graphApiVersion: string = process.env.GRAPH_API_VERSION || "v23.0";
-const defaultPhoneNumberId: string | undefined =
-  process.env.WHATSAPP_PHONE_NUMBER_ID;
-const whatsappToken: string | undefined =
-  process.env.WHATSAPP_TOKEN || process.env.WHATSAPP_ACCESS_TOKEN;
-
 export async function sendWhatsAppText(args: {
   to: string;
   body: string;
   phoneNumberId?: string;
 }): Promise<void> {
+  const graphApiVersion: string = process.env.GRAPH_API_VERSION || "v23.0";
+  const whatsappToken: string | undefined =
+    process.env.WHATSAPP_TOKEN || process.env.WHATSAPP_ACCESS_TOKEN;
+  const defaultPhoneNumberId: string | undefined =
+    process.env.WHATSAPP_PHONE_NUMBER_ID;
+
   if (!whatsappToken) {
     console.warn(
       "[WARN] Missing WHATSAPP_TOKEN (or WHATSAPP_ACCESS_TOKEN). Cannot send message."

@@ -1,11 +1,33 @@
 import { Hono } from "hono";
 import { prettyJSON } from "hono/pretty-json";
+// import { Cron } from "croner";
 
 import { handleUserReply } from "./appointmentFlow";
 import { readAppointments } from "./storage";
-import { sendWhatsAppText } from "./whatsappClient";
+
+const port = process.env.PORT || 3000;
 
 const app = new Hono();
+
+// new Cron(
+//   "0 7 * * *",
+//   {
+//     timezone: "Asia/Kolkata"
+//   },
+//   () => {
+//     //implement morning reminder
+//   }
+// );
+
+// new Cron(
+//   "0 20 * * *",
+//   {
+//     timezone: "Asia/Kolkata"
+//   },
+//   () => {
+//     //implement night reminder
+//   }
+// );
 
 // Pretty JSON in development
 app.use(prettyJSON());
@@ -13,9 +35,7 @@ app.use(prettyJSON());
 // Health check
 app.get("/health", (c) => {
   console.log("Health check");
-  console.log(process.env.WHATSAPP_VERIFY_TOKEN);
-  console.log(process.env.VERIFY_TOKEN);
-  return c.text("ok");
+  return c.text("OK");
 });
 
 // Webhook verification (GET)
@@ -23,6 +43,11 @@ app.get("/webhook", (c) => {
   const mode = c.req.query("hub.mode");
   const token = c.req.query("hub.verify_token");
   const challenge = c.req.query("hub.challenge");
+  const urlToken = c.req.query("token");
+
+  if (urlToken !== process.env.URL_TOKEN) {
+    return c.body(null, 400);
+  }
 
   const verifyToken =
     process.env.WHATSAPP_VERIFY_TOKEN || process.env.VERIFY_TOKEN;
@@ -45,6 +70,11 @@ app.get("/webhook", (c) => {
 // Webhook receiver (POST)
 app.post("/webhook", async (c) => {
   try {
+    if (c.req.query("token") !== process.env.URL_TOKEN) {
+      console.log("Unknown request");
+      return c.body(null, 400);
+    }
+
     const body = await c.req.json();
 
     if (!body || body.object !== "whatsapp_business_account") {
@@ -88,31 +118,6 @@ app.post("/webhook", async (c) => {
   }
 });
 
-// Manual test endpoint
-app.post("/test/text", async (c) => {
-  try {
-    const body = await c.req.json();
-    const to = String(body?.to || "").trim();
-    const phoneNumberId =
-      (body?.phoneNumberId as string | undefined) || undefined;
-
-    if (!to) {
-      return c.json({ error: "Missing 'to' in body" }, 400);
-    }
-
-    await sendWhatsAppText({
-      to,
-      phoneNumberId,
-      body: "Test from Shivas Eye Care.",
-    });
-
-    return c.json({ status: "text_sent" }, 200);
-  } catch (err: any) {
-    console.error("/test/text error:", err?.response?.data || err);
-    return c.json({ error: "Failed to send text" }, 500);
-  }
-});
-
 // Admin list appointments
 app.get("/admin/appointments", async (c) => {
   try {
@@ -124,4 +129,4 @@ app.get("/admin/appointments", async (c) => {
   }
 });
 
-export default app;
+export default { port, fetch: app.fetch };

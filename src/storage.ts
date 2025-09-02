@@ -35,4 +35,31 @@ export async function persistAppointment(appt: StoredAppointment): Promise<void>
   await fs.writeFile(appointmentsFile, JSON.stringify(list, null, 2));
 }
 
+/**
+ * ✅ Delete all appointments for a given user phone number
+ */
+export async function deleteAppointment(userPhone: string): Promise<void> {
+  const list = await readAppointments();
+  const filtered = list.filter((a) => a.userPhone !== userPhone);
+  await ensureDataDir();
+  await fs.writeFile(appointmentsFile, JSON.stringify(filtered, null, 2));
+}
 
+/**
+ * ✅ Update the first matching appointment for a user
+ */
+export async function updateAppointment(userPhone: string, newDate: string, newTime: string): Promise<void> {
+  const list = await readAppointments();
+  const updatedList = list.map((a) => {
+    if (a.userPhone === userPhone) {
+      return {
+        ...a,
+        date: newDate,
+        time: newTime,
+      };
+    }
+    return a;
+  });
+  await ensureDataDir();
+  await fs.writeFile(appointmentsFile, JSON.stringify(updatedList, null, 2));
+}

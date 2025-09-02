@@ -28,7 +28,9 @@ export async function readAppointments(): Promise<StoredAppointment[]> {
   }
 }
 
-export async function persistAppointment(appt: StoredAppointment): Promise<void> {
+export async function persistAppointment(
+  appt: StoredAppointment
+): Promise<void> {
   const list = await readAppointments();
   list.push(appt);
   await ensureDataDir();
@@ -48,7 +50,11 @@ export async function deleteAppointment(userPhone: string): Promise<void> {
 /**
  * ✅ Update the first matching appointment for a user
  */
-export async function updateAppointment(userPhone: string, newDate: string, newTime: string): Promise<void> {
+export async function updateAppointment(
+  userPhone: string,
+  newDate: string,
+  newTime: string
+): Promise<void> {
   const list = await readAppointments();
   const updatedList = list.map((a) => {
     if (a.userPhone === userPhone) {

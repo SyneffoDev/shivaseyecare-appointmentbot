@@ -42,6 +42,3 @@ export async function sendWhatsAppText(args: {
     timeout: 10000,
   });
 }
-
-
-

@@ -1,8 +1,9 @@
 {
   "name": "hono",
   "scripts": {
-    "dev": "bun run --hot src/index.ts",
-    "start": "bun run src/index.ts"
+    "dev": "bun run --hot src/server.ts",
+    "dev:log": "bun run --hot src/server.ts 2>&1 | tee dev.log",
+    "start": "bun run src/server.ts"
   },
   "dependencies": {
     "axios": "^1.7.7",

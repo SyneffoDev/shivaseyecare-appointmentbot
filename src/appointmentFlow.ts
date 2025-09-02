@@ -7,7 +7,7 @@ import {
   readAppointments,
   deleteAppointment,
   updateAppointment,
-  StoredAppointment,
+  type StoredAppointment,
 } from "./storage";
 
 
@@ -60,9 +60,9 @@ function normalizeTimeLabel(input: string): string {
   return input.replace(/\s+/g, " ").trim().toUpperCase();
 }
 
-function isValidDateDDMMYYYY(input: string): boolean {
-  return dayjs(input, "DD/MM/YYYY", true).isValid();
-}
+// function isValidDateDDMMYYYY(input: string): boolean {
+//   return dayjs(input, "DD/MM/YYYY", true).isValid();
+// }
 
 function dayOfWeekLabel(dateDDMMYYYY: string): string {
   const d = dayjs(dateDDMMYYYY, "DD/MM/YYYY", true);
@@ -216,7 +216,7 @@ export async function handleUserReply(
     session.state = "awaitingTime";
 
     // ✅ Fetch slots excluding booked ones
-    const slots = await getAvailableSlots(session.selectedDate);
+    const slots = await getAvailableSlots(session.selectedDate!);
     if (slots.length === 0) {
       await sendWhatsAppText({ to: userPhone, phoneNumberId, body: `Sorry, no slots are available on ${session.selectedDate}. Please choose another date.` });
       session.state = "awaitingDate";
@@ -224,7 +224,7 @@ export async function handleUserReply(
     }
 
     const slotsMsg =
-      `Available slots for ${session.selectedDate} (${dayOfWeekLabel(session.selectedDate)}):\n\n` +
+      `Available slots for ${session.selectedDate} (${dayOfWeekLabel(session.selectedDate!)}):\n\n` +
       slots.map((s, i) => `${i + 1}. ${s}`).join("\n") +
       "\n\nReply with the slot number (e.g., 1 for first option).";
 
@@ -287,7 +287,7 @@ export async function handleUserReply(
     session.selectedDate = session.dateOptions![index - 1];
     session.state = "rescheduleNewTime";
 
-    const slots = await getAvailableSlots(session.selectedDate);
+    const slots = await getAvailableSlots(session.selectedDate!);
     if (slots.length === 0) {
       await sendWhatsAppText({ to: userPhone, phoneNumberId, body: `Sorry, no slots are available on ${session.selectedDate}. Please choose another date.` });
       session.state = "rescheduleNewDate";

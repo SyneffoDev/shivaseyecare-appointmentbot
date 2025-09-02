@@ -2,7 +2,7 @@ import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 dayjs.extend(customParseFormat);
 import { sendWhatsAppText } from "./whatsappClient";
-import { persistAppointment, readAppointments, StoredAppointment } from "./storage";
+import { persistAppointment, readAppointments, type StoredAppointment } from "./storage";
 
 export type AppointmentSessionState =
   | "awaitingName"
@@ -129,7 +129,7 @@ export async function handleUserReply(
     session.selectedDate = chosen.format("DD/MM/YYYY");
     session.state = "awaitingTime";
     const slotsList = availableSlots.map((s, i) => `${i + 1}. ${s}`).join("\n");
-    const dayLabel = dayOfWeekLabel(session.selectedDate);
+    const dayLabel = dayOfWeekLabel(session.selectedDate ?? "");
     const slotsMsg =
       `Perfect! 🎯\n\nHere are the available time slots for ${session.selectedDate} (${dayLabel}):\n\n` +
       `${slotsList}\n\n👉 Please reply with the time you prefer (e.g., 10:30 AM).`;
@@ -214,8 +214,8 @@ async function showAppointments(
   userPhone: string,
   phoneNumberId?: string
 ): Promise<void> {
-  const list = await readAppointments();
-  const mine = list.filter((a) => a.userPhone === userPhone);
+  const list: StoredAppointment[] = await readAppointments();
+  const mine = list.filter((a: StoredAppointment) => a.userPhone === userPhone);
   if (mine.length === 0) {
     await sendWhatsAppText({
       to: userPhone,
@@ -226,8 +226,8 @@ async function showAppointments(
   }
   const lines = mine
     .slice(-5)
-    .map(
-      (a, i) => `${i + 1}. ${a.date} at ${a.time} — ${a.serviceTitle} (for ${a.name})`
+    .map((a: StoredAppointment, i: number) =>
+      `${i + 1}. ${a.date} at ${a.time} — ${a.serviceTitle} (for ${a.name})`
     )
     .join("\n");
   const msg =
@@ -236,5 +236,6 @@ async function showAppointments(
     "\n\nReply 'book' to schedule another appointment.";
   await sendWhatsAppText({ to: userPhone, phoneNumberId, body: msg });
 }
+
 
 

@@ -10,6 +10,7 @@ import {
   StoredAppointment,
 } from "./storage";
 
+
 export type AppointmentSessionState =
   | "mainMenu"
   | "awaitingName"
@@ -313,7 +314,6 @@ export async function handleUserReply(
     }
     session.selectedTime = slots[index - 1];
     session.state = "rescheduleCheck";
-
     await sendWhatsAppText({
       to: userPhone,
       phoneNumberId,
@@ -345,7 +345,6 @@ export async function handleUserReply(
       return;
     }
   }
-
 
   // CANCEL FLOW
   if (session.state === "confirmCancel") {

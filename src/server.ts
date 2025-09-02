@@ -49,8 +49,7 @@ app.get("/webhook", (c) => {
     return c.body(null, 400);
   }
 
-  const verifyToken =
-    process.env.WHATSAPP_VERIFY_TOKEN || process.env.VERIFY_TOKEN;
+  const verifyToken = process.env.WEBHOOK_VERIFY_TOKEN;
 
   if (mode === "subscribe" && token && challenge) {
     if (token === verifyToken) {

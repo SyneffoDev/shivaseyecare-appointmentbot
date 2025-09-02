@@ -1,2 +1,2 @@
 bun run lint
-bun run prettier
+bun run format

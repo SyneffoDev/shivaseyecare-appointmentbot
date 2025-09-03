@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 
-export interface StoredAppointment {
+export type StoredAppointment = {
   id: string;
   userPhone: string;
   serviceId: string;
@@ -10,7 +10,7 @@ export interface StoredAppointment {
   time: string;
   name: string;
   createdAtIso: string;
-}
+};
 
 const dataDir = path.join(process.cwd(), "data");
 const appointmentsFile = path.join(dataDir, "appointments.json");

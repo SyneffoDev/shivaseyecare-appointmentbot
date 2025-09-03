@@ -10,25 +10,7 @@ import {
   type StoredAppointment,
 } from "./storage";
 
-export type AppointmentSessionState =
-  | "mainMenu"
-  | "awaitingName"
-  | "awaitingDate"
-  | "awaitingTime"
-  | "awaitingConfirm"
-  | "rescheduleCheck"
-  | "rescheduleNewDate"
-  | "rescheduleNewTime"
-  | "confirmCancel";
-
-export interface AppointmentSession {
-  state: AppointmentSessionState;
-  selectedDate?: string;
-  selectedTime?: string;
-  name?: string;
-  lastInteractionUnixMs: number;
-  dateOptions?: string[];
-}
+import type { AppointmentSession } from "./utils/types";
 
 export const phoneNumberToSession = new Map<string, AppointmentSession>();
 

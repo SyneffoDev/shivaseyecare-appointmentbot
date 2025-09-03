@@ -2,7 +2,6 @@ import { SQL } from "bun";
 
 const db = new SQL({
   url: process.env.DB_URL,
-  max: 20,
 });
 
 await db`CREATE TABLE IF NOT EXISTS appointments (

@@ -57,8 +57,8 @@ app.get("/webhook", (c) => {
     }
     console.warn(
       "[VERIFY] Token mismatch. Received len=%s, expected len=%s",
-      String(token).length,
-      String(verifyToken || "").length
+      token.length,
+      verifyToken?.length ?? 0
     );
     return c.body(null, 403);
   }
@@ -67,6 +67,28 @@ app.get("/webhook", (c) => {
 });
 
 // Webhook receiver (POST)
+interface WebhookMessage {
+  from?: string;
+  type?: string;
+  text?: { body?: string };
+}
+
+interface WebhookChangeValue {
+  metadata?: { phone_number_id?: string };
+  messages?: WebhookMessage[];
+}
+
+interface WebhookChange {
+  value?: WebhookChangeValue;
+}
+interface WebhookEntry {
+  changes?: WebhookChange[];
+}
+interface WebhookBody {
+  object?: string;
+  entry?: WebhookEntry[];
+}
+
 app.post("/webhook", async (c) => {
   try {
     if (c.req.query("token") !== process.env.URL_TOKEN) {
@@ -74,7 +96,7 @@ app.post("/webhook", async (c) => {
       return c.body(null, 400);
     }
 
-    const body = await c.req.json();
+    const body: WebhookBody | undefined = await c.req.json();
 
     if (!body || body.object !== "whatsapp_business_account") {
       return c.body(null, 400);
@@ -82,28 +104,34 @@ app.post("/webhook", async (c) => {
 
     console.log("Incoming webhook:", JSON.stringify(body, null, 2));
 
-    const entryList = Array.isArray(body.entry) ? body.entry : [];
+    const entryList: WebhookEntry[] = Array.isArray(body.entry)
+      ? body.entry
+      : [];
     for (const entry of entryList) {
-      const changeList = Array.isArray(entry.changes) ? entry.changes : [];
+      const changeList: WebhookChange[] | undefined[] = Array.isArray(
+        entry.changes
+      )
+        ? entry.changes
+        : [];
       for (const change of changeList) {
-        const value = change.value || {};
-        const phoneNumberIdFromWebhook = value?.metadata?.phone_number_id as
-          | string
-          | undefined;
-        const messages = Array.isArray(value.messages) ? value.messages : [];
+        const value: WebhookChangeValue = change.value ?? {};
+        const phoneNumberIdFromWebhook = value.metadata?.phone_number_id;
+        const messages: WebhookMessage[] = Array.isArray(value.messages)
+          ? value.messages
+          : [];
         for (const message of messages) {
-          const from = message.from as string | undefined;
-          const type = message.type as string | undefined;
+          const from = message.from;
+          const type = message.type;
           const text =
-            type === "text" && message.text
-              ? (message.text.body as string)
-              : undefined;
+            type === "text" && message.text ? message.text.body : undefined;
           console.log("[WhatsApp] from=%s type=%s text=%s", from, type, text);
 
           if (from && text) {
             // Fire and forget
-            handleUserReply(from, text, phoneNumberIdFromWebhook).catch((err) =>
-              console.error("handleUserReply error:", err)
+            handleUserReply(from, text, phoneNumberIdFromWebhook).catch(
+              (err: unknown) => {
+                console.error("handleUserReply error:", err);
+              }
             );
           }
         }

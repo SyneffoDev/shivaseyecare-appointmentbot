@@ -1,4 +1,4 @@
-export type DbAppointmentRow = {
+export interface DbAppointmentRow {
   id: string;
   user_phone: string;
   service_id: string;
@@ -7,7 +7,7 @@ export type DbAppointmentRow = {
   time: string;
   name: string;
   created_at: string;
-};
+}
 
 export type AppointmentSessionState =
   | "mainMenu"
@@ -20,11 +20,11 @@ export type AppointmentSessionState =
   | "rescheduleNewTime"
   | "confirmCancel";
 
-export type AppointmentSession = {
+export interface AppointmentSession {
   state: AppointmentSessionState;
   selectedDate?: string;
   selectedTime?: string;
   name?: string;
   lastInteractionUnixMs: number;
   dateOptions?: string[];
-};
+}

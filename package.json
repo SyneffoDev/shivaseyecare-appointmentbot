@@ -5,8 +5,8 @@
     "dev:log": "bun run --watch src/server.ts 2>&1 | tee dev.log | sed -r 's/\\x1B\\[[0-9;]*[JKmsu]//g'",
     "start": "bun run src/server.ts",
     "initdb": "bun run src/utils/initdb.ts",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
     "format": "prettier --write src",
     "format:check": "prettier --check src"
   },

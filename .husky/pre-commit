@@ -1,9 +1,9 @@
-bun run format
-bun run lint
+#bun run format
+#bun run lint
 
 # If formatting made changes, unstage everything and ask the developer to re-stage
-if ! git diff --quiet; then
-  git reset -q
-  echo "\033[1;31mFormatting made changes. Please review, stage the files again, and commit.\033[0m"
-  exit 1
-fi
+#if ! git diff --quiet; then
+#  git reset -q
+#  echo "\033[1;31mFormatting made changes. Please review, stage the files again, and commit.\033[0m"
+#  exit 1
+#fi

@@ -26,3 +26,10 @@ jobs:
 
       - name: Run ESLint
         run: bun run lint
+
+      # Always show guidance if any of the above steps fail
+      - name: Show fix instructions
+        if: failure()
+        run: |
+          echo "::notice title=Formatting failed::Run 'bun run format' locally to fix formatting."
+          echo "::notice title=Lint failed::Run 'bun run lint:fix' locally to auto-fix lintable issues."

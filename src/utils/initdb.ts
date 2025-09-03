@@ -1,4 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { SQL } from "bun";
+import type { Appointment } from "./types";
 
 const db = new SQL({
   url: process.env.DB_URL,
@@ -18,12 +20,13 @@ await db`CREATE TABLE IF NOT EXISTS appointments (
 await db`CREATE INDEX IF NOT EXISTS idx_appointments_user_phone
   ON appointments (user_phone);`;
 
-// const rows =
-//   await db`SELECT id, user_phone, service_id, service_title, date, time, name, created_at
+// const rows: AppointmentRow[] = [...(await db`SELECT id, user_phone, service_id, service_title, date, time, name, created_at
 //   FROM appointments
 //   ORDER BY created_at DESC
-//   LIMIT 10;`;
+//   LIMIT 10;`)];
 
-// const count = await db`SELECT COUNT(*) FROM appointments;`;
-// console.log("Sample query result:", rows);
-// console.log("Count:", count[0].count);
+// console.log("Sample query rows:", rows);
+
+// const appointment: Appointment | null = [...(await db<Appointment[]>`SELECT * FROM appointments where user_phone = '+15550001111';`)][0] || null;
+
+// console.log(appointment);

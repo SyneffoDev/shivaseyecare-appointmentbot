@@ -14,12 +14,16 @@
     "axios": "^1.7.7",
     "croner": "^9.1.0",
     "dayjs": "^1.11.18",
-    "hono": "^4.9.5"
+    "dotenv": "^17.2.2",
+    "drizzle-orm": "^0.44.5",
+    "hono": "^4.9.5",
+    "pg": "^8.16.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.34.0",
-    "@types/bun": "latest",
+    "@types/bun": "^1.2.21",
     "@types/node-cron": "^3.0.11",
+    "drizzle-kit": "^0.31.4",
     "eslint": "^9.34.0",
     "globals": "^16.3.0",
     "husky": "^9.1.7",

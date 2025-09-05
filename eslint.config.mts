@@ -5,6 +5,10 @@ import tseslint from "typescript-eslint";
 import { defineConfig } from "eslint/config";
 
 export default defineConfig([
+  // Ignore non-src folders (e.g., drizzle)
+  {
+    ignores: ["drizzle/**"],
+  },
   // JS only: built-in JS recommended rules
   {
     files: ["src/**/*.{js,mjs,cjs}"],
@@ -19,10 +23,15 @@ export default defineConfig([
     },
   },
 
-  // TypeScript: strict, type-aware linting
-  ...tseslint.configs.recommended,
-  ...tseslint.configs.strictTypeChecked,
-  ...tseslint.configs.stylisticTypeChecked,
+  // TypeScript: strict, type-aware linting (scoped to src only)
+  {
+    files: ["src/**/*.{ts,tsx,mts,cts}"],
+    extends: [
+      ...tseslint.configs.recommended,
+      ...tseslint.configs.strictTypeChecked,
+      ...tseslint.configs.stylisticTypeChecked,
+    ],
+  },
 
   // Project-wide parser options for typed linting (tsconfig-aware)
   {
@@ -68,7 +77,7 @@ export default defineConfig([
 
   // Ensure JS files aren’t type-checked by TS-aware rules
   {
-    files: ["**/*.{js,mjs,cjs}"],
+    files: ["src/**/*.{js,mjs,cjs}"],
     extends: [tseslint.configs.disableTypeChecked],
   },
 ]);

@@ -1,6 +1,5 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { SQL } from "bun";
-import type { Appointment } from "./types";
+// import type { Appointment } from "./types";
 
 const db = new SQL({
   url: process.env.DB_URL,

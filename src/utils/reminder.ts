@@ -16,26 +16,30 @@ function formatDateSafe(input: string): string {
 export async function sendReminder(date: string) {
   // console.log("Sending reminder for", date);
   const appointments = await getAppointmentsByDate(date);
+
+  // Determine if the date is today or tomorrow
+  const today = dayjs().format("DD/MM/YYYY");
+  const formattedDate = formatDateSafe(date);
+
   for (const appointment of appointments) {
     // console.log("Sending reminder for", appointment.name);
     const newDate = formatDateSafe(appointment.date);
     await sendWhatsAppTemplate({
       to: appointment.userPhone,
-      templateName: "appointment_reminder",
+      templateName: "appointment",
       templateLanguage: "en",
       components: [
         {
-          type: "header",
+          type: "body",
           parameters: [
             {
               type: "text",
               text: appointment.name,
             },
-          ],
-        },
-        {
-          type: "body",
-          parameters: [
+            {
+              type: "text",
+              text: formattedDate === today ? "Today" : "Tomorrow",
+            },
             {
               type: "text",
               text: `${newDate} (${dayOfWeekLabel(newDate)})`,

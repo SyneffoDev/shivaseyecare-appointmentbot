@@ -3,12 +3,13 @@ import customParseFormat from "dayjs/plugin/customParseFormat";
 dayjs.extend(customParseFormat);
 import { sendWhatsAppText } from "./whatsappClient";
 import {
-  persistAppointment,
-  readAppointments,
-  deleteAppointment,
-  updateAppointment,
-  type StoredAppointment,
-} from "./storage";
+  createAppointment,
+  getAllAppointments,
+  getAppointmentByUserPhone,
+  getAppointmentsByDate,
+  updateAppointment as updateAppointmentInDb,
+  deleteAppointmentByUserPhone,
+} from "./db";
 
 import type { AppointmentSession } from "./utils/types";
 
@@ -67,6 +68,48 @@ export function dayOfWeekLabel(inputDate: string): string {
   return d.isValid() ? d.format("dddd") : "";
 }
 
+function toIsoDateFromDisplay(displayDate: string): string {
+  const d = dayjs(displayDate, ["DD/MM/YYYY", "D/M/YYYY"], true);
+  return d.isValid() ? d.format("YYYY-MM-DD") : displayDate;
+}
+
+// Removed unused direct conversion helper in favor of format helpers below
+
+function formatDisplayDateWithDay(displayDate: string): string {
+  const d = dayjs(displayDate, ["DD/MM/YYYY", "D/M/YYYY"], true);
+  return d.isValid()
+    ? `${d.format("DD/MM/YYYY")} (${d.format("dddd")})`
+    : displayDate;
+}
+
+function formatDbDateWithDay(value: unknown): string {
+  if (value instanceof Date) {
+    const d = dayjs(value);
+    return `${d.format("DD/MM/YYYY")} (${d.format("dddd")})`;
+  }
+  if (typeof value === "string") {
+    // Try ISO first, then fallback to loose parsing
+    let d = dayjs(
+      value,
+      ["YYYY-MM-DD", "YYYY-M-D", "DD/MM/YYYY", "D/M/YYYY"],
+      true
+    );
+    if (!d.isValid()) {
+      d = dayjs(value);
+    }
+    return d.isValid()
+      ? `${d.format("DD/MM/YYYY")} (${d.format("dddd")})`
+      : value;
+  }
+  if (typeof value === "number") {
+    const d = dayjs(value);
+    return d.isValid()
+      ? `${d.format("DD/MM/YYYY")} (${d.format("dddd")})`
+      : String(value);
+  }
+  return "";
+}
+
 // ✅ Get available slots dynamically based on day
 function getBaseSlots(date: string): string[] {
   const day = dayOfWeekLabel(date);
@@ -76,12 +119,11 @@ function getBaseSlots(date: string): string[] {
 // ✅ Fetch and filter slots by removing already booked times for that date
 async function getAvailableSlots(date: string): Promise<string[]> {
   const baseSlots = getBaseSlots(date);
-  const allAppointments = await readAppointments();
-  const bookedSlots = allAppointments
-    .filter((a) => a.date === date)
-    .map((a) => normalizeTimeLabel(a.time));
-
-  // Remove booked slots from the base slots
+  const isoDate = toIsoDateFromDisplay(date);
+  const appointmentsOnDate = await getAppointmentsByDate(isoDate);
+  const bookedSlots = appointmentsOnDate.map((a) =>
+    normalizeTimeLabel(a.time as unknown as string)
+  );
   return baseSlots.filter(
     (slot) => !bookedSlots.includes(normalizeTimeLabel(slot))
   );
@@ -146,17 +188,14 @@ export async function handleUserReply(
       });
       return;
     } else if (message === "2" || message.includes("reschedule")) {
-      const existingAppointments = await readAppointments();
-      const userAppt = existingAppointments.find(
-        (a) => a.userPhone === userPhone
-      );
+      const userAppt = await getAppointmentByUserPhone(userPhone);
       if (userAppt) {
         const dateOptions = getNext7Days();
         session.dateOptions = dateOptions;
         session.state = "rescheduleNewDate";
 
         const dateMsg =
-          `Your current appointment:\n${userAppt.date} at ${userAppt.time}\n\nPlease choose a new date:\n` +
+          `Your current appointment:\n${formatDbDateWithDay(userAppt.date)} at ${userAppt.time}\n\nPlease choose a new date:\n` +
           dateOptions
             .map((d, i) => `${String(i + 1)}. ${d} (${dayOfWeekLabel(d)})`)
             .join("\n");
@@ -171,16 +210,13 @@ export async function handleUserReply(
       }
       return;
     } else if (message === "3" || message.includes("cancel")) {
-      const existingAppointments = await readAppointments();
-      const userAppt = existingAppointments.find(
-        (a) => a.userPhone === userPhone
-      );
+      const userAppt = await getAppointmentByUserPhone(userPhone);
       if (userAppt) {
         session.state = "confirmCancel";
         await sendWhatsAppText({
           to: userPhone,
           phoneNumberId,
-          body: `Are you sure you want to cancel your appointment on ${userAppt.date} at ${userAppt.time}? (yes/no)`,
+          body: `Are you sure you want to cancel your appointment on ${formatDbDateWithDay(userAppt.date)} at ${userAppt.time}? (yes/no)`,
         });
       } else {
         await sendWhatsAppText({
@@ -321,21 +357,19 @@ export async function handleUserReply(
 
   if (session.state === "awaitingConfirm") {
     if (message === "yes") {
-      const appt: StoredAppointment = {
-        id: `${String(Date.now())}-${userPhone}`,
+      await createAppointment({
         userPhone,
         serviceId: "default",
         serviceTitle: "Eye Care Appointment",
-        date: session.selectedDate ?? "",
+        date: toIsoDateFromDisplay(session.selectedDate ?? ""),
         time: session.selectedTime ?? "",
         name: session.name ?? "",
-        createdAtIso: new Date().toISOString(),
-      };
-      await persistAppointment(appt);
+        createdAt: new Date().toISOString(),
+      });
       await sendWhatsAppText({
         to: userPhone,
         phoneNumberId,
-        body: `✅ Appointment confirmed for ${session.selectedDate ?? ""} at ${session.selectedTime ?? ""}. We will remind you 24 hrs before.`,
+        body: `✅ Appointment confirmed for ${formatDisplayDateWithDay(session.selectedDate ?? "")} at ${session.selectedTime ?? ""}. We will remind you 24 hrs before.`,
       });
       phoneNumberToSession.delete(userPhone);
       return;
@@ -449,15 +483,23 @@ export async function handleUserReply(
         phoneNumberToSession.delete(userPhone);
         return;
       }
-      await updateAppointment(
-        userPhone,
-        session.selectedDate,
-        session.selectedTime
-      );
+      const existingAppt = await getAppointmentByUserPhone(userPhone);
+      if (existingAppt) {
+        await updateAppointmentInDb({
+          id: existingAppt.id,
+          userPhone: existingAppt.userPhone,
+          serviceId: existingAppt.serviceId,
+          serviceTitle: existingAppt.serviceTitle,
+          date: toIsoDateFromDisplay(session.selectedDate),
+          time: session.selectedTime,
+          name: existingAppt.name,
+          createdAt: existingAppt.createdAt,
+        });
+      }
       await sendWhatsAppText({
         to: userPhone,
         phoneNumberId,
-        body: `✅ Appointment successfully rescheduled to ${session.selectedDate} at ${session.selectedTime}.`,
+        body: `✅ Appointment successfully rescheduled to ${formatDisplayDateWithDay(session.selectedDate)} at ${session.selectedTime}.`,
       });
       phoneNumberToSession.delete(userPhone);
       return;
@@ -475,7 +517,7 @@ export async function handleUserReply(
   // CANCEL FLOW
   if (session.state === "confirmCancel") {
     if (message === "yes") {
-      await deleteAppointment(userPhone);
+      await deleteAppointmentByUserPhone(userPhone);
       await sendWhatsAppText({
         to: userPhone,
         phoneNumberId,
@@ -497,7 +539,7 @@ async function showAppointments(
   userPhone: string,
   phoneNumberId?: string
 ): Promise<void> {
-  const list = await readAppointments();
+  const list = await getAllAppointments();
   const mine = list.filter((a) => a.userPhone === userPhone);
   if (mine.length === 0) {
     await sendWhatsAppText({
@@ -510,7 +552,7 @@ async function showAppointments(
   const lines = mine
     .map(
       (a, i) =>
-        `${String(i + 1)}. ${a.date} at ${a.time} — ${a.serviceTitle} (${a.name})`
+        `${String(i + 1)}. ${formatDbDateWithDay(a.date)} at ${a.time} — ${a.serviceTitle} (${a.name})`
     )
     .join("\n");
   await sendWhatsAppText({

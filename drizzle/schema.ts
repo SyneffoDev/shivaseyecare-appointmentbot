@@ -1,10 +1,10 @@
-import { pgTable, index, text, date, timestamp } from "drizzle-orm/pg-core"
+import { pgTable, index, serial, text, date, timestamp } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 
 
 export const appointments = pgTable("appointments", {
-	id: text().primaryKey().notNull(),
+	id: serial().primaryKey().notNull(),
 	userPhone: text("user_phone").notNull(),
 	serviceId: text("service_id").notNull(),
 	serviceTitle: text("service_title").notNull(),

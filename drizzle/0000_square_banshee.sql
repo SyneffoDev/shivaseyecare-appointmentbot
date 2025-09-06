@@ -2,7 +2,7 @@
 -- If you want to run this migration please uncomment this code before executing migrations
 /*
 CREATE TABLE "appointments" (
-	"id" text PRIMARY KEY NOT NULL,
+	"id" serial PRIMARY KEY NOT NULL,
 	"user_phone" text NOT NULL,
 	"service_id" text NOT NULL,
 	"service_title" text NOT NULL,

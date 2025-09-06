@@ -1,33 +1,46 @@
 import { Hono } from "hono";
 import { prettyJSON } from "hono/pretty-json";
-// import { Cron } from "croner";
+import { Cron } from "croner";
 
 import { handleUserReply } from "./appointmentFlow";
 import { readAppointments } from "./storage";
+import { sendReminder } from "./utils/reminder";
+import dayjs from "dayjs";
 
 const port = process.env.PORT || 3000;
 
 const app = new Hono();
 
+new Cron(
+  "0 7 * * *",
+  {
+    timezone: "Asia/Kolkata",
+  },
+  async () => {
+    await sendReminder(dayjs().format("YYYY-MM-DD"));
+  }
+);
+// For testing
 // new Cron(
-//   "0 7 * * *",
+//   "50 10 * * *",
 //   {
-//     timezone: "Asia/Kolkata"
+//     timezone: "Asia/Kolkata",
 //   },
-//   () => {
-//     //implement morning reminder
+//   async () => {
+//     console.log("Sending reminder for", dayjs().format("YYYY-MM-DD"));
+//     await sendReminder(dayjs().format("YYYY-MM-DD"));
 //   }
 // );
 
-// new Cron(
-//   "0 20 * * *",
-//   {
-//     timezone: "Asia/Kolkata"
-//   },
-//   () => {
-//     //implement night reminder
-//   }
-// );
+new Cron(
+  "0 20 * * *",
+  {
+    timezone: "Asia/Kolkata",
+  },
+  async () => {
+    await sendReminder(dayjs().add(1, "day").format("YYYY-MM-DD"));
+  }
+);
 
 // Pretty JSON in development
 app.use(prettyJSON());

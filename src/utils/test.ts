@@ -1,37 +1,60 @@
-import {
-  getAllAppointments,
-  getAppointmentByUserPhone,
-  getAppointmentsByDate,
-  createAppointment,
-  updateAppointment,
-  deleteAppointmentByUserPhone,
-} from "../db";
+// import axios from "axios";
 
-const appointment = await getAppointmentByUserPhone("+15550001111");
-const appointmentsByDate = await getAppointmentsByDate("2025-01-01");
-await createAppointment({
-  id: "1",
-  userPhone: "+15550001114",
-  serviceId: "1",
-  serviceTitle: "Test Service",
-  date: "2025-01-01",
-  time: "10:00",
-  name: "Test Name",
-  createdAt: "2025-01-01",
-});
-await updateAppointment({
-  id: "1",
-  userPhone: "+15550001111",
-  serviceId: "1",
-  serviceTitle: "Test Service",
-  date: "2025-01-01",
-  time: "10:00",
-  name: "Test Name",
-  createdAt: "2025-01-01",
-});
-const appointments = await getAllAppointments();
+// async function sendReminderDirect() {
+//   const graphApiVersion = process.env.GRAPH_API_VERSION || "v23.0";
+//   const phoneNumberId = process.env.NUMBER_ID; // e.g. "123456789012345"
+//   const whatsappToken = process.env.WHATSAPP_TOKEN || process.env.WHATSAPP_ACCESS_TOKEN; // App token
+//   const to = "916382058580"; // recipient in international format, no '+'
 
-await deleteAppointmentByUserPhone("+15550001111");
-console.log(appointments);
-console.log(appointment);
-console.log(appointmentsByDate);
+//   const appointment = {
+//     name: "John Doe",
+//     date: "07/09/2025",              // DD/MM/YYYY
+//     dayLabel: "Sunday",              // e.g. from your dayOfWeekLabel()
+//     time: "10:20 AM",
+//     doctor: "G.Ramesh Babu",
+//   };
+
+//   if (!phoneNumberId || !whatsappToken) {
+//     throw new Error("Missing NUMBER_ID or WHATSAPP_TOKEN");
+//   }
+
+//   const url = `https://graph.facebook.com/${graphApiVersion}/${phoneNumberId}/messages`;
+
+//   const payload = {
+//     messaging_product: "whatsapp",
+//     to,
+//     type: "template",
+//     template: {
+//       name: "appointment_reminder",
+//       language: { code: "en" },
+//       components: [
+//         {
+//           type: "header",
+//           parameters: [{ type: "text", text: appointment.name }],
+//         },
+//         {
+//           type: "body",
+//           parameters: [
+//             { type: "text", text: `${appointment.date}(${appointment.dayLabel})` },
+//             { type: "text", text: appointment.time },
+//             { type: "text", text: appointment.doctor },
+//           ],
+//         },
+//       ],
+//     },
+//   };
+
+//   const res = await axios.post(url, payload, {
+//     headers: {
+//       Authorization: `Bearer ${whatsappToken}`,
+//       "Content-Type": "application/json",
+//     },
+//     timeout: 15000,
+//   });
+
+//   console.log("Sent:", res.data);
+// }
+
+// sendReminderDirect().catch((e) => {
+//   console.error(e?.response?.data || e);
+// });

@@ -58,8 +58,12 @@ function normalizeTimeLabel(input: string): string {
 //   return dayjs(input, "DD/MM/YYYY", true).isValid();
 // }
 
-function dayOfWeekLabel(dateDDMMYYYY: string): string {
-  const d = dayjs(dateDDMMYYYY, "DD/MM/YYYY", true);
+export function dayOfWeekLabel(inputDate: string): string {
+  const d = dayjs(
+    inputDate,
+    ["YYYY-MM-DD", "YYYY-M-D", "DD/MM/YYYY", "D/M/YYYY"],
+    true
+  );
   return d.isValid() ? d.format("dddd") : "";
 }
 

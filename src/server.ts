@@ -83,6 +83,7 @@ app.get("/webhook", (c) => {
 interface WebhookMessage {
   from?: string;
   type?: string;
+  id?: string;
   text?: { body?: string };
 }
 
@@ -128,24 +129,21 @@ app.post("/webhook", async (c) => {
         : [];
       for (const change of changeList) {
         const value: WebhookChangeValue = change.value ?? {};
-        const phoneNumberIdFromWebhook = value.metadata?.phone_number_id;
         const messages: WebhookMessage[] = Array.isArray(value.messages)
           ? value.messages
           : [];
         for (const message of messages) {
           const from = message.from;
           const type = message.type;
+          const id = message.id;
           const text =
             type === "text" && message.text ? message.text.body : undefined;
           console.log("[WhatsApp] from=%s type=%s text=%s", from, type, text);
 
-          if (from && text) {
-            // Fire and forget
-            handleUserReply(from, text, phoneNumberIdFromWebhook).catch(
-              (err: unknown) => {
-                console.error("handleUserReply error:", err);
-              }
-            );
+          if (from && text && id) {
+            handleUserReply(from, text, id).catch((err: unknown) => {
+              console.error("handleUserReply error:", err);
+            });
           }
         }
       }

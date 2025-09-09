@@ -1,14 +1,11 @@
-import axios from "axios";
+const whatsappToken: string | undefined = process.env.WHATSAPP_TOKEN;
+const graphApiVersion: string = process.env.GRAPH_API_VERSION || "v23.0";
+const defaultPhoneNumberId: string | undefined = process.env.NUMBER_ID;
 
 export async function sendWhatsAppText(args: {
   to: string;
   body: string;
 }): Promise<void> {
-  const graphApiVersion: string = process.env.GRAPH_API_VERSION || "v23.0";
-  const whatsappToken: string | undefined =
-    process.env.WHATSAPP_TOKEN || process.env.WHATSAPP_ACCESS_TOKEN;
-  const defaultPhoneNumberId: string | undefined = process.env.NUMBER_ID;
-
   if (!whatsappToken) {
     console.warn(
       "[WARN] Missing WHATSAPP_TOKEN (or WHATSAPP_ACCESS_TOKEN). Cannot send message."
@@ -30,21 +27,34 @@ export async function sendWhatsAppText(args: {
     text: { body: args.body },
   } as const;
 
-  await axios.post(url, payload, {
-    headers: {
-      Authorization: `Bearer ${whatsappToken}`,
-      "Content-Type": "application/json",
-    },
-    timeout: 10000,
-  });
+  // Use inbuilt fetch instead of axios
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, 10000);
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${whatsappToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    // Optionally, you can check for non-2xx responses here
+    if (!response.ok) {
+      console.warn(
+        `[WARN] WhatsApp API responded with status ${response.status.toString()}`
+      );
+    }
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function sendReadReceipt(messageId: string): Promise<void> {
-  const graphApiVersion: string = process.env.GRAPH_API_VERSION || "v23.0";
-  const whatsappToken: string | undefined =
-    process.env.WHATSAPP_TOKEN || process.env.WHATSAPP_ACCESS_TOKEN;
-  const defaultPhoneNumberId: string | undefined = process.env.NUMBER_ID;
-
   if (!whatsappToken) {
     console.warn(
       "[WARN] Missing WHATSAPP_TOKEN (or WHATSAPP_ACCESS_TOKEN). Cannot send message."
@@ -65,13 +75,30 @@ export async function sendReadReceipt(messageId: string): Promise<void> {
     message_id: messageId,
   } as const;
 
-  await axios.post(url, payload, {
-    headers: {
-      Authorization: `Bearer ${whatsappToken}`,
-      "Content-Type": "application/json",
-    },
-    timeout: 10000,
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, 10000);
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${whatsappToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    // Optionally, you can check for non-2xx responses here
+    if (!response.ok) {
+      console.warn(
+        `[WARN] WhatsApp API responded with status ${response.status.toString()}`
+      );
+    }
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function sendWhatsAppTemplate(args: {
@@ -80,11 +107,6 @@ export async function sendWhatsAppTemplate(args: {
   templateLanguage: string;
   components: any[];
 }): Promise<void> {
-  const graphApiVersion: string = process.env.GRAPH_API_VERSION || "v23.0";
-  const whatsappToken: string | undefined =
-    process.env.WHATSAPP_TOKEN || process.env.WHATSAPP_ACCESS_TOKEN;
-  const defaultPhoneNumberId: string | undefined = process.env.NUMBER_ID;
-
   if (!whatsappToken) {
     console.warn(
       "[WARN] Missing WHATSAPP_TOKEN (or WHATSAPP_ACCESS_TOKEN). Cannot send message."
@@ -110,11 +132,27 @@ export async function sendWhatsAppTemplate(args: {
     },
   } as const;
 
-  await axios.post(url, payload, {
-    headers: {
-      Authorization: `Bearer ${whatsappToken}`,
-      "Content-Type": "application/json",
-    },
-    timeout: 10000,
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, 10000);
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${whatsappToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    // Optionally, you can check for non-2xx responses here
+    if (!response.ok) {
+      console.warn(
+        `[WARN] WhatsApp API responded with status ${response.status.toString()}`
+      );
+    }
+  } finally {
+    clearTimeout(timeout);
+  }
 }

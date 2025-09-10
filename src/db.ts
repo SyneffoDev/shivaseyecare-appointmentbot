@@ -1,7 +1,8 @@
 import { SQL } from "bun";
 import { drizzle } from "drizzle-orm/bun-sql";
-import { eq } from "drizzle-orm";
+import { and, eq, gte } from "drizzle-orm";
 import { appointments } from "./db/schema";
+import dayjs from "dayjs";
 
 const client = new SQL({
   url: process.env.DATABASE_URL,
@@ -11,17 +12,29 @@ const db = drizzle(client);
 
 type Appointment = typeof appointments.$inferSelect;
 
+function getTodayDateString(): string {
+  const now = dayjs().format("YYYY-MM-DD");
+  return now;
+}
+
 async function getAllAppointments(): Promise<Appointment[]> {
-  return await db.select().from(appointments);
+  const today = getTodayDateString();
+  return await db
+    .select()
+    .from(appointments)
+    .where(gte(appointments.date, today));
 }
 
 async function getAppointmentByUserPhone(
   userPhone: string
 ): Promise<Appointment | null> {
+  const today = getTodayDateString();
   const rows = await db
     .select()
     .from(appointments)
-    .where(eq(appointments.userPhone, userPhone))
+    .where(
+      and(eq(appointments.userPhone, userPhone), gte(appointments.date, today))
+    )
     .limit(1);
   return rows[0] ?? null;
 }

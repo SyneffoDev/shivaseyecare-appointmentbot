@@ -15,7 +15,6 @@ import type { AppointmentSession } from "./utils/types";
 
 export const phoneNumberToSession = new Map<string, AppointmentSession>();
 
-// ✅ Slots for Sunday and weekdays
 const sundaySlots: string[] = [
   "10:00 AM",
   "10:20 AM",
@@ -88,7 +87,6 @@ function formatDbDateWithDay(value: unknown): string {
     return `${d.format("DD/MM/YYYY")} (${d.format("dddd")})`;
   }
   if (typeof value === "string") {
-    // Try ISO first, then fallback to loose parsing
     let d = dayjs(
       value,
       ["YYYY-MM-DD", "YYYY-M-D", "DD/MM/YYYY", "D/M/YYYY"],
@@ -110,13 +108,11 @@ function formatDbDateWithDay(value: unknown): string {
   return "";
 }
 
-// ✅ Get available slots dynamically based on day
 function getBaseSlots(date: string): string[] {
   const day = dayOfWeekLabel(date);
   return day === "Sunday" ? sundaySlots : weekdaySlots;
 }
 
-// ✅ Fetch and filter slots by removing already booked times for that date
 async function getAvailableSlots(date: string): Promise<string[]> {
   const baseSlots = getBaseSlots(date);
   const isoDate = toIsoDateFromDisplay(date);
@@ -179,7 +175,6 @@ export async function handleUserReply(
   const session: AppointmentSession = existing;
   session.lastInteractionUnixMs = now;
 
-  // MAIN MENU
   if (session.state === "mainMenu") {
     if (message === "1" || message.includes("book")) {
       session.state = "awaitingName";
@@ -244,7 +239,6 @@ export async function handleUserReply(
     }
   }
 
-  // BOOKING FLOW
   if (session.state === "awaitingName") {
     const name = text.replace(/[^\p{L} .'-]/gu, "").trim();
     if (!name) {
@@ -296,7 +290,6 @@ export async function handleUserReply(
     session.selectedDate = pickedDate;
     session.state = "awaitingTime";
 
-    // ✅ Fetch slots excluding booked ones
     const slots = await getAvailableSlots(session.selectedDate);
     if (slots.length === 0) {
       await sendWhatsAppText({
@@ -371,7 +364,6 @@ export async function handleUserReply(
     }
   }
 
-  // ✅ RESCHEDULE FLOW (same date/time logic)
   if (session.state === "rescheduleNewDate") {
     const index = parseInt(message);
     if (isNaN(index) || index < 1 || index > 7) {
@@ -501,7 +493,6 @@ export async function handleUserReply(
     }
   }
 
-  // CANCEL FLOW
   if (session.state === "confirmCancel") {
     if (message === "yes") {
       await deleteAppointmentByUserPhone(userPhone);

@@ -73,6 +73,9 @@ export async function sendReadReceipt(messageId: string): Promise<void> {
     messaging_product: "whatsapp",
     status: "read",
     message_id: messageId,
+    typing_indicator: {
+      type: "text",
+    },
   } as const;
 
   const controller = new AbortController();

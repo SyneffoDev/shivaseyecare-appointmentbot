@@ -7,7 +7,7 @@ import { readAppointments } from "./storage";
 import { sendReminder } from "./utils/reminder";
 import dayjs from "dayjs";
 
-const port = process.env.PORT || 3000;
+const port = parseInt(process.env.PORT || "3000");
 
 const app = new Hono();
 
@@ -167,4 +167,9 @@ app.get("/admin/appointments", async (c) => {
   }
 });
 
-export default { port, fetch: app.fetch };
+const server = Bun.serve({
+  port: port,
+  fetch: app.fetch,
+});
+
+console.log(`Server started on http://localhost:${String(server.port)}`);

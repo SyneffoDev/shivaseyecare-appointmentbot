@@ -43,7 +43,6 @@ export async function sendWhatsAppText(args: {
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
-    // Optionally, you can check for non-2xx responses here
     if (!response.ok) {
       console.warn(
         `[WARN] WhatsApp API responded with status ${response.status.toString()}`
@@ -93,7 +92,6 @@ export async function sendReadReceipt(messageId: string): Promise<void> {
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
-    // Optionally, you can check for non-2xx responses here
     if (!response.ok) {
       console.warn(
         `[WARN] WhatsApp API responded with status ${response.status.toString()}`
@@ -149,7 +147,6 @@ export async function sendWhatsAppTemplate(args: {
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
-    // Optionally, you can check for non-2xx responses here
     if (!response.ok) {
       console.warn(
         `[WARN] WhatsApp API responded with status ${response.status.toString()}`

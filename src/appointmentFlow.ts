@@ -12,6 +12,7 @@ import {
 } from "./db";
 
 import type { AppointmentSession } from "./utils/types";
+import type { Appointment } from "./db";
 
 export const phoneNumberToSession = new Map<string, AppointmentSession>();
 
@@ -116,7 +117,13 @@ function getBaseSlots(date: string): string[] {
 async function getAvailableSlots(date: string): Promise<string[]> {
   const baseSlots = getBaseSlots(date);
   const isoDate = toIsoDateFromDisplay(date);
-  const appointmentsOnDate = await getAppointmentsByDate(isoDate);
+  let appointmentsOnDate: Appointment[];
+  try {
+    appointmentsOnDate = await getAppointmentsByDate(isoDate);
+  } catch (err) {
+    // Rethrow to let the caller handle user-facing error messaging
+    throw err;
+  }
   const bookedSlots = appointmentsOnDate.map((a) =>
     normalizeTimeLabel(a.time as unknown as string)
   );
@@ -184,7 +191,17 @@ export async function handleUserReply(
       });
       return;
     } else if (message === "2" || message.includes("reschedule")) {
-      const userAppt = await getAppointmentByUserPhone(userPhone);
+      let userAppt: Appointment | null;
+      try {
+        userAppt = await getAppointmentByUserPhone(userPhone);
+      } catch (err) {
+        console.error("getAppointmentByUserPhone error:", err);
+        await sendWhatsAppText({
+          to: userPhone,
+          body: "Sorry, we couldn't fetch your appointment right now. Please try again later.",
+        });
+        return;
+      }
       if (userAppt) {
         const dateOptions = getNext7Days();
         session.dateOptions = dateOptions;
@@ -205,7 +222,17 @@ export async function handleUserReply(
       }
       return;
     } else if (message === "3" || message.includes("cancel")) {
-      const userAppt = await getAppointmentByUserPhone(userPhone);
+      let userAppt: Appointment | null;
+      try {
+        userAppt = await getAppointmentByUserPhone(userPhone);
+      } catch (err) {
+        console.error("getAppointmentByUserPhone error:", err);
+        await sendWhatsAppText({
+          to: userPhone,
+          body: "Sorry, we couldn't check your appointment right now. Please try again later.",
+        });
+        return;
+      }
       if (userAppt) {
         session.state = "confirmCancel";
         await sendWhatsAppText({
@@ -263,7 +290,7 @@ export async function handleUserReply(
 
   if (session.state === "awaitingDate") {
     const index = parseInt(message);
-    if (isNaN(index) || index < 1 || index > 7) {
+    if (Number.isNaN(index) || index < 1 || index > 7) {
       await sendWhatsAppText({
         to: userPhone,
         body: "Invalid choice. Please select 1-7.",
@@ -290,7 +317,18 @@ export async function handleUserReply(
     session.selectedDate = pickedDate;
     session.state = "awaitingTime";
 
-    const slots = await getAvailableSlots(session.selectedDate);
+    const slots: string[] = [];
+    try {
+      const slotsForDate = await getAvailableSlots(session.selectedDate);
+      slots.push(...slotsForDate);
+    } catch (err) {
+      console.error("getAvailableSlots error:", err);
+      await sendWhatsAppText({
+        to: userPhone,
+        body: "Sorry, we couldn't load available slots. Please try again later.",
+      });
+      return;
+    }
     if (slots.length === 0) {
       await sendWhatsAppText({
         to: userPhone,
@@ -319,8 +357,19 @@ export async function handleUserReply(
       session.state = "awaitingDate";
       return;
     }
-    const slots = await getAvailableSlots(session.selectedDate);
-    if (isNaN(index) || index < 1 || index > slots.length) {
+    const slots: string[] = [];
+    try {
+      const slotsForDate = await getAvailableSlots(session.selectedDate);
+      slots.push(...slotsForDate);
+    } catch (err) {
+      console.error("getAvailableSlots error:", err);
+      await sendWhatsAppText({
+        to: userPhone,
+        body: "Sorry, we couldn't load available slots. Please try again later.",
+      });
+      return;
+    }
+    if (Number.isNaN(index) || index < 1 || index > slots.length) {
       await sendWhatsAppText({
         to: userPhone,
         body: "Invalid choice. Please select a valid slot number.",
@@ -339,15 +388,25 @@ export async function handleUserReply(
 
   if (session.state === "awaitingConfirm") {
     if (message === "yes") {
-      await createAppointment({
-        userPhone,
-        serviceId: "default",
-        serviceTitle: "Eye Care Appointment",
-        date: toIsoDateFromDisplay(session.selectedDate ?? ""),
-        time: session.selectedTime ?? "",
-        name: session.name ?? "",
-        createdAt: new Date().toISOString(),
-      });
+      try {
+        await createAppointment({
+          userPhone,
+          serviceId: "default",
+          serviceTitle: "Eye Care Appointment",
+          date: toIsoDateFromDisplay(session.selectedDate ?? ""),
+          time: session.selectedTime ?? "",
+          name: session.name ?? "",
+          createdAt: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.error("createAppointment error:", err);
+        await sendWhatsAppText({
+          to: userPhone,
+          body: "Sorry, we couldn't confirm your booking due to a system error. Please try again.",
+        });
+        phoneNumberToSession.delete(userPhone);
+        return;
+      }
       await sendWhatsAppText({
         to: userPhone,
         body: `✅ Appointment confirmed for ${formatDisplayDateWithDay(session.selectedDate ?? "")} at ${session.selectedTime ?? ""}. We will remind you 24 hrs before.`,
@@ -366,7 +425,7 @@ export async function handleUserReply(
 
   if (session.state === "rescheduleNewDate") {
     const index = parseInt(message);
-    if (isNaN(index) || index < 1 || index > 7) {
+    if (Number.isNaN(index) || index < 1 || index > 7) {
       await sendWhatsAppText({
         to: userPhone,
 
@@ -396,7 +455,18 @@ export async function handleUserReply(
     session.selectedDate = pickedDate;
     session.state = "rescheduleNewTime";
 
-    const slots = await getAvailableSlots(session.selectedDate);
+    const slots: string[] = [];
+    try {
+      const slotsForDate = await getAvailableSlots(session.selectedDate);
+      slots.push(...slotsForDate);
+    } catch (err) {
+      console.error("getAvailableSlots error:", err);
+      await sendWhatsAppText({
+        to: userPhone,
+        body: "Sorry, we couldn't load available slots. Please try again later.",
+      });
+      return;
+    }
     if (slots.length === 0) {
       await sendWhatsAppText({
         to: userPhone,
@@ -429,8 +499,20 @@ export async function handleUserReply(
       session.state = "rescheduleNewDate";
       return;
     }
-    const slots = await getAvailableSlots(session.selectedDate);
-    if (isNaN(index) || index < 1 || index > slots.length) {
+    const slots: string[] = [];
+    try {
+      const slotsForDate = await getAvailableSlots(session.selectedDate);
+      slots.push(...slotsForDate);
+    } catch (err) {
+      console.error("getAvailableSlots error:", err);
+      await sendWhatsAppText({
+        to: userPhone,
+
+        body: "Sorry, we couldn't load available slots. Please try again later.",
+      });
+      return;
+    }
+    if (Number.isNaN(index) || index < 1 || index > slots.length) {
       await sendWhatsAppText({
         to: userPhone,
 
@@ -462,18 +544,29 @@ export async function handleUserReply(
         phoneNumberToSession.delete(userPhone);
         return;
       }
-      const existingAppt = await getAppointmentByUserPhone(userPhone);
-      if (existingAppt) {
-        await updateAppointmentInDb({
-          id: existingAppt.id,
-          userPhone: existingAppt.userPhone,
-          serviceId: existingAppt.serviceId,
-          serviceTitle: existingAppt.serviceTitle,
-          date: toIsoDateFromDisplay(session.selectedDate),
-          time: session.selectedTime,
-          name: existingAppt.name,
-          createdAt: existingAppt.createdAt,
+      try {
+        const existingAppt = await getAppointmentByUserPhone(userPhone);
+        if (existingAppt) {
+          await updateAppointmentInDb({
+            id: existingAppt.id,
+            userPhone: existingAppt.userPhone,
+            serviceId: existingAppt.serviceId,
+            serviceTitle: existingAppt.serviceTitle,
+            date: toIsoDateFromDisplay(session.selectedDate),
+            time: session.selectedTime,
+            name: existingAppt.name,
+            createdAt: existingAppt.createdAt,
+          });
+        }
+      } catch (err) {
+        console.error("reschedule update error:", err);
+        await sendWhatsAppText({
+          to: userPhone,
+
+          body: "Sorry, we couldn't reschedule your appointment due to a system error. Please try again.",
         });
+        phoneNumberToSession.delete(userPhone);
+        return;
       }
       await sendWhatsAppText({
         to: userPhone,
@@ -495,7 +588,18 @@ export async function handleUserReply(
 
   if (session.state === "confirmCancel") {
     if (message === "yes") {
-      await deleteAppointmentByUserPhone(userPhone);
+      try {
+        await deleteAppointmentByUserPhone(userPhone);
+      } catch (err) {
+        console.error("deleteAppointmentByUserPhone error:", err);
+        await sendWhatsAppText({
+          to: userPhone,
+
+          body: "Sorry, we couldn't cancel your appointment right now. Please try again later.",
+        });
+        phoneNumberToSession.delete(userPhone);
+        return;
+      }
       await sendWhatsAppText({
         to: userPhone,
 
@@ -514,7 +618,18 @@ export async function handleUserReply(
 }
 
 async function showAppointments(userPhone: string): Promise<void> {
-  const list = await getAllAppointments();
+  const list: Appointment[] = [];
+  try {
+    const listForUser = await getAllAppointments();
+    list.push(...listForUser);
+  } catch (err) {
+    console.error("getAllAppointments error:", err);
+    await sendWhatsAppText({
+      to: userPhone,
+      body: "Sorry, we couldn't retrieve your appointments right now. Please try again later.",
+    });
+    return;
+  }
   const mine = list.filter((a) => a.userPhone === userPhone);
   if (mine.length === 0) {
     await sendWhatsAppText({

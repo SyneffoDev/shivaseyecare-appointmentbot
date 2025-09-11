@@ -10,7 +10,7 @@ const client = new SQL({
 
 const db = drizzle(client);
 
-type Appointment = typeof appointments.$inferSelect;
+export type Appointment = typeof appointments.$inferSelect;
 
 function getTodayDateString(): string {
   const now = dayjs().format("YYYY-MM-DD");

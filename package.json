@@ -1,5 +1,5 @@
 {
-  "name": "hono",
+  "name": "Shivas Eye Care Appointment Bot",
   "scripts": {
     "dev": "bun run --watch src/server.ts",
     "dev:log": "bun run --watch src/server.ts 2>&1 | tee dev.log | sed -r 's/\\x1B\\[[0-9;]*[JKmsu]//g'",

@@ -1,5 +1,5 @@
-import fs from "fs/promises";
-import path from "path";
+import fs from "node:fs/promises";
+import path from "node:path";
 
 export interface StoredAppointment {
   id: string;
@@ -37,9 +37,6 @@ export async function persistAppointment(
   await fs.writeFile(appointmentsFile, JSON.stringify(list, null, 2));
 }
 
-/**
- * ✅ Delete all appointments for a given user phone number
- */
 export async function deleteAppointment(userPhone: string): Promise<void> {
   const list = await readAppointments();
   const filtered = list.filter((a) => a.userPhone !== userPhone);
@@ -47,9 +44,6 @@ export async function deleteAppointment(userPhone: string): Promise<void> {
   await fs.writeFile(appointmentsFile, JSON.stringify(filtered, null, 2));
 }
 
-/**
- * ✅ Update the first matching appointment for a user
- */
 export async function updateAppointment(
   userPhone: string,
   newDate: string,

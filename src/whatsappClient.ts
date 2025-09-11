@@ -106,6 +106,7 @@ export async function sendWhatsAppTemplate(args: {
   to: string;
   templateName: string;
   templateLanguage: string;
+  // biome-ignore lint/suspicious/noExplicitAny: types are not known
   components: any[];
 }): Promise<void> {
   if (!whatsappToken) {

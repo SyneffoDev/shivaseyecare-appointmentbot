@@ -263,7 +263,7 @@ export async function handleUserReply(
 
   if (session.state === "awaitingDate") {
     const index = parseInt(message);
-    if (isNaN(index) || index < 1 || index > 7) {
+    if (Number.isNaN(index) || index < 1 || index > 7) {
       await sendWhatsAppText({
         to: userPhone,
         body: "Invalid choice. Please select 1-7.",
@@ -320,7 +320,7 @@ export async function handleUserReply(
       return;
     }
     const slots = await getAvailableSlots(session.selectedDate);
-    if (isNaN(index) || index < 1 || index > slots.length) {
+    if (Number.isNaN(index) || index < 1 || index > slots.length) {
       await sendWhatsAppText({
         to: userPhone,
         body: "Invalid choice. Please select a valid slot number.",
@@ -366,7 +366,7 @@ export async function handleUserReply(
 
   if (session.state === "rescheduleNewDate") {
     const index = parseInt(message);
-    if (isNaN(index) || index < 1 || index > 7) {
+    if (Number.isNaN(index) || index < 1 || index > 7) {
       await sendWhatsAppText({
         to: userPhone,
 
@@ -430,7 +430,7 @@ export async function handleUserReply(
       return;
     }
     const slots = await getAvailableSlots(session.selectedDate);
-    if (isNaN(index) || index < 1 || index > slots.length) {
+    if (Number.isNaN(index) || index < 1 || index > slots.length) {
       await sendWhatsAppText({
         to: userPhone,
 

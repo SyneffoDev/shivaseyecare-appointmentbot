@@ -1,6 +1,7 @@
 const whatsappToken: string | undefined = process.env.WHATSAPP_TOKEN;
 const graphApiVersion: string = process.env.GRAPH_API_VERSION || "v23.0";
 const defaultPhoneNumberId: string | undefined = process.env.NUMBER_ID;
+const url = `https://graph.facebook.com/${graphApiVersion}/${defaultPhoneNumberId}/messages`;
 
 export async function sendWhatsAppText(args: {
   to: string;
@@ -8,7 +9,7 @@ export async function sendWhatsAppText(args: {
 }): Promise<void> {
   if (!whatsappToken) {
     console.warn(
-      "[WARN] Missing WHATSAPP_TOKEN (or WHATSAPP_ACCESS_TOKEN). Cannot send message."
+      "[WARN] Missing WHATSAPP_TOKEN (or WHATSAPP_ACCESS_TOKEN). Cannot send message.",
     );
     return;
   }
@@ -19,7 +20,7 @@ export async function sendWhatsAppText(args: {
     return;
   }
 
-  const url = `https://graph.facebook.com/${graphApiVersion}/${resolvedPhoneNumberId}/messages`;
+  
   const payload = {
     messaging_product: "whatsapp",
     to: args.to,
@@ -45,7 +46,7 @@ export async function sendWhatsAppText(args: {
     });
     if (!response.ok) {
       console.warn(
-        `[WARN] WhatsApp API responded with status ${response.status.toString()}`
+        `[WARN] WhatsApp API responded with status ${response.status.toString()}`,
       );
     }
   } finally {
@@ -56,7 +57,7 @@ export async function sendWhatsAppText(args: {
 export async function sendReadReceipt(messageId: string): Promise<void> {
   if (!whatsappToken) {
     console.warn(
-      "[WARN] Missing WHATSAPP_TOKEN (or WHATSAPP_ACCESS_TOKEN). Cannot send message."
+      "[WARN] Missing WHATSAPP_TOKEN (or WHATSAPP_ACCESS_TOKEN). Cannot send message.",
     );
     return;
   }
@@ -94,7 +95,7 @@ export async function sendReadReceipt(messageId: string): Promise<void> {
     });
     if (!response.ok) {
       console.warn(
-        `[WARN] WhatsApp API responded with status ${response.status.toString()}`
+        `[WARN] WhatsApp API responded with status ${response.status.toString()}`,
       );
     }
   } finally {
@@ -111,7 +112,7 @@ export async function sendWhatsAppTemplate(args: {
 }): Promise<void> {
   if (!whatsappToken) {
     console.warn(
-      "[WARN] Missing WHATSAPP_TOKEN (or WHATSAPP_ACCESS_TOKEN). Cannot send message."
+      "[WARN] Missing WHATSAPP_TOKEN (or WHATSAPP_ACCESS_TOKEN). Cannot send message.",
     );
     return;
   }
@@ -150,7 +151,7 @@ export async function sendWhatsAppTemplate(args: {
     });
     if (!response.ok) {
       console.warn(
-        `[WARN] WhatsApp API responded with status ${response.status.toString()}`
+        `[WARN] WhatsApp API responded with status ${response.status.toString()}`,
       );
     }
   } finally {

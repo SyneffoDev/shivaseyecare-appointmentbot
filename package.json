@@ -5,10 +5,10 @@
     "dev:log": "bun run --watch src/server.ts 2>&1 | tee dev.log | sed -r 's/\\x1B\\[[0-9;]*[JKmsu]//g'",
     "start": "bun run src/server.ts",
     "initdb": "bun run src/utils/initdb.ts",
-    "lint": "eslint src",
+    "lint": "biome lint src && tsc --noEmit",
     "lint:fix": "eslint src --fix",
-    "format": "prettier --write src",
-    "format:check": "prettier --check src"
+    "format": "biome format --write src",
+    "format:check": "biome format src"
   },
   "dependencies": {
     "croner": "^9.1.0",
@@ -29,6 +29,7 @@
     "husky": "^9.1.7",
     "jiti": "^2.5.1",
     "prettier": "^3.6.2",
+    "typescript": "^5.9.2",
     "typescript-eslint": "^8.42.0"
   }
 }

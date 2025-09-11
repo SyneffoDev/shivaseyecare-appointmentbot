@@ -62,7 +62,7 @@ export function dayOfWeekLabel(inputDate: string): string {
   const d = dayjs(
     inputDate,
     ["YYYY-MM-DD", "YYYY-M-D", "DD/MM/YYYY", "D/M/YYYY"],
-    true
+    true,
   );
   return d.isValid() ? d.format("dddd") : "";
 }
@@ -90,7 +90,7 @@ function formatDbDateWithDay(value: unknown): string {
     let d = dayjs(
       value,
       ["YYYY-MM-DD", "YYYY-M-D", "DD/MM/YYYY", "D/M/YYYY"],
-      true
+      true,
     );
     if (!d.isValid()) {
       d = dayjs(value);
@@ -118,10 +118,10 @@ async function getAvailableSlots(date: string): Promise<string[]> {
   const isoDate = toIsoDateFromDisplay(date);
   const appointmentsOnDate = await getAppointmentsByDate(isoDate);
   const bookedSlots = appointmentsOnDate.map((a) =>
-    normalizeTimeLabel(a.time as unknown as string)
+    normalizeTimeLabel(a.time as unknown as string),
   );
   return baseSlots.filter(
-    (slot) => !bookedSlots.includes(normalizeTimeLabel(slot))
+    (slot) => !bookedSlots.includes(normalizeTimeLabel(slot)),
   );
 }
 
@@ -143,14 +143,14 @@ const contactDetails =
 function getNext7Days(): string[] {
   const today = dayjs();
   return Array.from({ length: 7 }, (_, i) =>
-    today.add(i + 1, "day").format("DD/MM/YYYY")
+    today.add(i + 1, "day").format("DD/MM/YYYY"),
   );
 }
 
 export async function handleUserReply(
   userPhone: string,
   text: string,
-  messageId: string
+  messageId: string,
 ): Promise<void> {
   sendReadReceipt(messageId).catch((err: unknown) => {
     console.error("sendReadReceipt error:", err);
@@ -526,7 +526,7 @@ async function showAppointments(userPhone: string): Promise<void> {
   const lines = mine
     .map(
       (a, i) =>
-        `${String(i + 1)}. ${formatDbDateWithDay(a.date)} at ${a.time} — ${a.serviceTitle} (${a.name})`
+        `${String(i + 1)}. ${formatDbDateWithDay(a.date)} at ${a.time} — ${a.serviceTitle} (${a.name})`,
     )
     .join("\n");
   await sendWhatsAppText({

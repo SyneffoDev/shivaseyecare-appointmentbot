@@ -26,7 +26,7 @@ export const appointments = pgTable(
   (table) => [
     index("idx_appointments_user_phone").using(
       "btree",
-      table.userPhone.asc().nullsLast().op("text_ops")
+      table.userPhone.asc().nullsLast().op("text_ops"),
     ),
-  ]
+  ],
 );

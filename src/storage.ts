@@ -29,7 +29,7 @@ export async function readAppointments(): Promise<StoredAppointment[]> {
 }
 
 export async function persistAppointment(
-  appt: StoredAppointment
+  appt: StoredAppointment,
 ): Promise<void> {
   const list = await readAppointments();
   list.push(appt);
@@ -53,7 +53,7 @@ export async function deleteAppointment(userPhone: string): Promise<void> {
 export async function updateAppointment(
   userPhone: string,
   newDate: string,
-  newTime: string
+  newTime: string,
 ): Promise<void> {
   const list = await readAppointments();
   const updatedList = list.map((a) => {

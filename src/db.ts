@@ -26,14 +26,14 @@ async function getAllAppointments(): Promise<Appointment[]> {
 }
 
 async function getAppointmentByUserPhone(
-  userPhone: string
+  userPhone: string,
 ): Promise<Appointment | null> {
   const today = getTodayDateString();
   const rows = await db
     .select()
     .from(appointments)
     .where(
-      and(eq(appointments.userPhone, userPhone), gte(appointments.date, today))
+      and(eq(appointments.userPhone, userPhone), gte(appointments.date, today)),
     )
     .limit(1);
   return rows[0] ?? null;
@@ -47,7 +47,7 @@ async function getAppointmentsByDate(date: string): Promise<Appointment[]> {
 }
 
 async function createAppointment(
-  appointment: typeof appointments.$inferInsert
+  appointment: typeof appointments.$inferInsert,
 ): Promise<void> {
   await db.insert(appointments).values(appointment);
 }

@@ -18,7 +18,7 @@ new Cron(
   },
   async () => {
     await sendReminder(dayjs().format("YYYY-MM-DD"));
-  }
+  },
 );
 // For testing
 // new Cron(
@@ -39,7 +39,7 @@ new Cron(
   },
   async () => {
     await sendReminder(dayjs().add(1, "day").format("YYYY-MM-DD"));
-  }
+  },
 );
 
 // Pretty JSON in development
@@ -71,7 +71,7 @@ app.get("/webhook", (c) => {
     console.warn(
       "[VERIFY] Token mismatch. Received len=%s, expected len=%s",
       token.length,
-      verifyToken?.length ?? 0
+      verifyToken?.length ?? 0,
     );
     return c.body(null, 403);
   }
@@ -123,7 +123,7 @@ app.post("/webhook", async (c) => {
       : [];
     for (const entry of entryList) {
       const changeList: WebhookChange[] | undefined[] = Array.isArray(
-        entry.changes
+        entry.changes,
       )
         ? entry.changes
         : [];

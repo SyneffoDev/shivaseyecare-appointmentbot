@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { Cron } from "croner";
 
-import { handleUserReply } from "./appointmentFlow";
+import { handleUserReply } from "./flows/appointmentFlow";
+import { handleAdminReply } from "./flows/adminFlow";
 import { sendReminder } from "./utils/reminder";
 import dayjs from "dayjs";
 import type {
@@ -93,8 +94,6 @@ app.post("/webhook", async (c) => {
       return c.body(null, 400);
     }
 
-    console.log("Incoming webhook:", JSON.stringify(body, null, 2));
-
     const entryList: WebhookEntry[] = Array.isArray(body.entry)
       ? body.entry
       : [];
@@ -117,7 +116,11 @@ app.post("/webhook", async (c) => {
             type === "text" && message.text ? message.text.body : undefined;
           console.log("[WhatsApp] from=%s type=%s text=%s", from, type, text);
 
-          if (from && text && id) {
+          if (from && text && id && from === process.env.ADMIN_PHONE_NUMBER) {
+            handleAdminReply(text, id).catch((err: unknown) => {
+              console.error("handleAdminReply error:", err);
+            });
+          } else if (from && text && id) {
             handleUserReply(from, text, id).catch((err: unknown) => {
               console.error("handleUserReply error:", err);
             });

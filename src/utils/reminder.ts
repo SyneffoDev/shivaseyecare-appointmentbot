@@ -1,6 +1,6 @@
 import { sendWhatsAppTemplate } from "./whatsappAPI";
 import { getAppointmentsByDate } from "../db/helpers";
-import { dayOfWeekLabel } from "../flows/appointmentFlow";
+import { dayOfWeekLabel } from "./dateHelper";
 import dayjs from "dayjs";
 
 function formatDate(input: string): string {

@@ -1,7 +1,7 @@
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 dayjs.extend(customParseFormat);
-import { sendWhatsAppText, sendReadReceipt } from "./whatsappClient";
+import { sendWhatsAppText, sendReadReceipt } from "../utils/whatsappAPI";
 import {
   createAppointment,
   getAllAppointments,
@@ -9,10 +9,10 @@ import {
   getAppointmentsByDate,
   updateAppointment as updateAppointmentInDb,
   deleteAppointmentByUserPhone,
-} from "./db";
+} from "../db/helpers";
 
-import type { AppointmentSession } from "./utils/types";
-import type { Appointment } from "./db";
+import type { AppointmentSession } from "../utils/types";
+import type { Appointment } from "../db/helpers";
 
 export const phoneNumberToSession = new Map<string, AppointmentSession>();
 

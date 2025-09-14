@@ -1,11 +1,17 @@
 import { Hono } from "hono";
-import { prettyJSON } from "hono/pretty-json";
 import { Cron } from "croner";
 
-import { handleUserReply } from "./appointmentFlow";
-import { readAppointments } from "./storage";
+import { handleUserReply } from "./flows/appointmentFlow";
+import { handleAdminReply } from "./flows/adminFlow";
 import { sendReminder } from "./utils/reminder";
 import dayjs from "dayjs";
+import type {
+  WebhookBody,
+  WebhookChange,
+  WebhookChangeValue,
+  WebhookEntry,
+  WebhookMessage,
+} from "./utils/types";
 
 const port = parseInt(process.env.PORT || "3000");
 
@@ -20,6 +26,7 @@ new Cron(
     await sendReminder(dayjs().format("YYYY-MM-DD"));
   }
 );
+
 // For testing
 // new Cron(
 //   "50 10 * * *",
@@ -42,16 +49,11 @@ new Cron(
   }
 );
 
-// Pretty JSON in development
-app.use(prettyJSON());
-
-// Health check
 app.get("/health", (c) => {
   console.log("Health check");
   return c.text("OK");
 });
 
-// Webhook verification (GET)
 app.get("/webhook", (c) => {
   const mode = c.req.query("hub.mode");
   const token = c.req.query("hub.verify_token");
@@ -79,30 +81,6 @@ app.get("/webhook", (c) => {
   return c.body(null, 400);
 });
 
-// Webhook receiver (POST)
-interface WebhookMessage {
-  from?: string;
-  type?: string;
-  id?: string;
-  text?: { body?: string };
-}
-
-interface WebhookChangeValue {
-  metadata?: { phone_number_id?: string };
-  messages?: WebhookMessage[];
-}
-
-interface WebhookChange {
-  value?: WebhookChangeValue;
-}
-interface WebhookEntry {
-  changes?: WebhookChange[];
-}
-interface WebhookBody {
-  object?: string;
-  entry?: WebhookEntry[];
-}
-
 app.post("/webhook", async (c) => {
   try {
     if (c.req.query("token") !== process.env.URL_TOKEN) {
@@ -115,8 +93,6 @@ app.post("/webhook", async (c) => {
     if (!body || body.object !== "whatsapp_business_account") {
       return c.body(null, 400);
     }
-
-    console.log("Incoming webhook:", JSON.stringify(body, null, 2));
 
     const entryList: WebhookEntry[] = Array.isArray(body.entry)
       ? body.entry
@@ -140,7 +116,11 @@ app.post("/webhook", async (c) => {
             type === "text" && message.text ? message.text.body : undefined;
           console.log("[WhatsApp] from=%s type=%s text=%s", from, type, text);
 
-          if (from && text && id) {
+          if (from && text && id && from === process.env.ADMIN_PHONE_NUMBER) {
+            handleAdminReply(text, id).catch((err: unknown) => {
+              console.error("handleAdminReply error:", err);
+            });
+          } else if (from && text && id) {
             handleUserReply(from, text, id).catch((err: unknown) => {
               console.error("handleUserReply error:", err);
             });
@@ -153,17 +133,6 @@ app.post("/webhook", async (c) => {
   } catch (error) {
     console.error("Webhook processing error:", error);
     return c.body(null, 500);
-  }
-});
-
-// Admin list appointments
-app.get("/admin/appointments", async (c) => {
-  try {
-    const list = await readAppointments();
-    return c.json({ count: list.length, items: list }, 200);
-  } catch (err) {
-    console.error("/admin/appointments error:", err);
-    return c.json({ error: "Failed to read appointments" }, 500);
   }
 });
 

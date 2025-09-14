@@ -56,6 +56,7 @@ export default defineConfig([
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/prefer-nullish-coalescing": "off",
       "@typescript-eslint/no-unnecessary-condition": "error",
+      "@typescript-eslint/consistent-type-definitions": "off",
     },
   },
   {

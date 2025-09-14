@@ -1,6 +1,7 @@
 const whatsappToken: string | undefined = process.env.WHATSAPP_TOKEN;
 const graphApiVersion: string = process.env.GRAPH_API_VERSION || "v23.0";
 const defaultPhoneNumberId: string | undefined = process.env.NUMBER_ID;
+const adminPhoneNumber: string | undefined = process.env.ADMIN_PHONE_NUMBER;
 
 export async function sendWhatsAppText(args: {
   to: string;
@@ -13,13 +14,12 @@ export async function sendWhatsAppText(args: {
     return;
   }
 
-  const resolvedPhoneNumberId = defaultPhoneNumberId;
-  if (!resolvedPhoneNumberId) {
+  if (!defaultPhoneNumberId) {
     console.warn("[WARN] Missing NUMBER_ID and none provided from webhook.");
     return;
   }
 
-  const url = `https://graph.facebook.com/${graphApiVersion}/${resolvedPhoneNumberId}/messages`;
+  const url = `https://graph.facebook.com/${graphApiVersion}/${defaultPhoneNumberId}/messages`;
   const payload = {
     messaging_product: "whatsapp",
     to: args.to,
@@ -53,6 +53,30 @@ export async function sendWhatsAppText(args: {
   }
 }
 
+export async function sendAdminNotifications(args: {
+  templateName: string;
+  components: any[];
+}) {
+  if (!whatsappToken) {
+    console.warn(
+      "[WARN] Missing WHATSAPP_TOKEN (or WHATSAPP_ACCESS_TOKEN). Cannot send message."
+    );
+    return;
+  }
+
+  if (!adminPhoneNumber) {
+    console.warn("[WARN] Missing ADMIN_PHONE_NUMBER.");
+    return;
+  }
+
+  await sendWhatsAppTemplate({
+    to: adminPhoneNumber,
+    templateName: args.templateName,
+    templateLanguage: "en",
+    components: args.components,
+  });
+}
+
 export async function sendReadReceipt(messageId: string): Promise<void> {
   if (!whatsappToken) {
     console.warn(
@@ -61,13 +85,12 @@ export async function sendReadReceipt(messageId: string): Promise<void> {
     return;
   }
 
-  const resolvedPhoneNumberId = defaultPhoneNumberId;
-  if (!resolvedPhoneNumberId) {
+  if (!defaultPhoneNumberId) {
     console.warn("[WARN] Missing NUMBER_ID and none provided from webhook.");
     return;
   }
 
-  const url = `https://graph.facebook.com/${graphApiVersion}/${resolvedPhoneNumberId}/messages`;
+  const url = `https://graph.facebook.com/${graphApiVersion}/${defaultPhoneNumberId}/messages`;
   const payload = {
     messaging_product: "whatsapp",
     status: "read",
@@ -115,13 +138,12 @@ export async function sendWhatsAppTemplate(args: {
     return;
   }
 
-  const resolvedPhoneNumberId = defaultPhoneNumberId;
-  if (!resolvedPhoneNumberId) {
+  if (!defaultPhoneNumberId) {
     console.warn("[WARN] Missing NUMBER_ID and none provided from webhook.");
     return;
   }
 
-  const url = `https://graph.facebook.com/${graphApiVersion}/${resolvedPhoneNumberId}/messages`;
+  const url = `https://graph.facebook.com/${graphApiVersion}/${defaultPhoneNumberId}/messages`;
   const payload = {
     messaging_product: "whatsapp",
     to: args.to,

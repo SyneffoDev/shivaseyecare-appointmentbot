@@ -1,7 +1,7 @@
 import { SQL } from "bun";
 import { drizzle } from "drizzle-orm/bun-sql";
 import { and, eq, gte } from "drizzle-orm";
-import { appointments } from "./db/schema";
+import { appointments } from "./schema";
 import dayjs from "dayjs";
 
 const client = new SQL({

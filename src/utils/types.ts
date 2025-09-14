@@ -1,14 +1,3 @@
-export interface Appointment {
-  id: string;
-  user_phone: string;
-  service_id: string;
-  service_title: string;
-  date: Date;
-  time: string;
-  name: string;
-  created_at: Date;
-}
-
 export type AppointmentSessionState =
   | "mainMenu"
   | "awaitingName"
@@ -27,4 +16,27 @@ export interface AppointmentSession {
   name?: string;
   lastInteractionUnixMs: number;
   dateOptions?: string[];
+}
+
+export interface WebhookMessage {
+  from?: string;
+  type?: string;
+  id?: string;
+  text?: { body?: string };
+}
+
+export interface WebhookChangeValue {
+  metadata?: { phone_number_id?: string };
+  messages?: WebhookMessage[];
+}
+
+export interface WebhookChange {
+  value?: WebhookChangeValue;
+}
+export interface WebhookEntry {
+  changes?: WebhookChange[];
+}
+export interface WebhookBody {
+  object?: string;
+  entry?: WebhookEntry[];
 }

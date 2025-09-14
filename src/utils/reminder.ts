@@ -3,7 +3,7 @@ import { getAppointmentsByDate } from "../db";
 import { dayOfWeekLabel } from "../appointmentFlow";
 import dayjs from "dayjs";
 
-function formatDateSafe(input: string): string {
+function formatDate(input: string): string {
   const formats = ["YYYY-MM-DD", "YYYY-M-D", "DD/MM/YYYY", "D/M/YYYY"];
   for (const fmt of formats) {
     const d = dayjs(input, fmt, true);
@@ -14,16 +14,13 @@ function formatDateSafe(input: string): string {
 }
 
 export async function sendReminder(date: string) {
-  // console.log("Sending reminder for", date);
   const appointments = await getAppointmentsByDate(date);
 
-  // Determine if the date is today or tomorrow
   const today = dayjs().format("DD/MM/YYYY");
-  const formattedDate = formatDateSafe(date);
+  const formattedDate = formatDate(date);
 
   for (const appointment of appointments) {
-    // console.log("Sending reminder for", appointment.name);
-    const newDate = formatDateSafe(appointment.date);
+    const newDate = formatDate(appointment.date);
     await sendWhatsAppTemplate({
       to: appointment.userPhone,
       templateName: "appointment",

@@ -139,7 +139,6 @@ const mainMenuMessage =
   "3. Cancel Appointment \n" +
   "4. View Appointment Details \n" +
   "5. Contact Support ";
-  
 
 const contactDetails =
   "📞 Shivas Eye Care Contact:\n" +

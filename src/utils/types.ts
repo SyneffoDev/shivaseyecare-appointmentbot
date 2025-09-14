@@ -9,7 +9,7 @@ export type AppointmentSessionState =
   | "rescheduleNewTime"
   | "rescheduleSession"
   | "confirmCancel"
-  |  "awaitingSession";
+  | "awaitingSession";
 
 export interface AppointmentSession {
   state: AppointmentSessionState;

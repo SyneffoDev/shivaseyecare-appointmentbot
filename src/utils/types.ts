@@ -18,7 +18,9 @@ export type AppointmentSessionState =
   | "rescheduleCheck"
   | "rescheduleNewDate"
   | "rescheduleNewTime"
-  | "confirmCancel";
+  | "rescheduleSession"
+  | "confirmCancel"
+  |  "awaitingSession";
 
 export interface AppointmentSession {
   state: AppointmentSessionState;

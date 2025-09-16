@@ -1,7 +1,8 @@
 const whatsappToken: string | undefined = process.env.WHATSAPP_TOKEN;
 const graphApiVersion: string = process.env.GRAPH_API_VERSION || "v23.0";
 const defaultPhoneNumberId: string | undefined = process.env.NUMBER_ID;
-const adminPhoneNumber: string | undefined = process.env.ADMIN_PHONE_NUMBER;
+export const adminPhoneNumber: string | undefined =
+  process.env.ADMIN_PHONE_NUMBER;
 
 export async function sendWhatsAppText(args: {
   to: string;

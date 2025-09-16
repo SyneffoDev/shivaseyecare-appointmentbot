@@ -1,7 +1,7 @@
 import dayjs from "dayjs";
 import { sendWhatsAppText, sendReadReceipt } from "../utils/whatsappAPI";
-import { getAppointmentsByDate } from "../db/helpers";
-import type { Appointment } from "../db/helpers";
+import { getAppointmentsByDate } from "../db/appointmentHelpers";
+import type { Appointment } from "../db/appointmentHelpers";
 import {
   dayOfWeekLabel,
   toIsoDateFromDisplay,

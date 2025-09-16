@@ -19,13 +19,18 @@ import {
   getAppointmentsByDate,
   updateAppointment as updateAppointmentInDb,
   deleteAppointmentByUserPhone,
-} from "../db/helpers";
+} from "../db/appointmentHelpers";
+import {
+  getSession,
+  setSession,
+  deleteSession,
+  updateSession,
+} from "../db/sessionHelpers";
 
 import type { AppointmentSession } from "../utils/types";
-import type { Appointment } from "../db/helpers";
+import type { Appointment } from "../db/appointmentHelpers";
 import { MorningSlots, AfternoonSlots } from "../utils/appointmentData";
 import { adminPhoneNumber } from "../utils/whatsappAPI";
-export const phoneNumberToSession = new Map<string, AppointmentSession>();
 
 function normalizeTimeLabel(input: string): string {
   return input.replace(/\s+/g, " ").trim().toUpperCase();
@@ -88,11 +93,15 @@ function getNext7Days(): string[] {
 }
 
 async function handleExit(userPhone: string): Promise<void> {
-  phoneNumberToSession.delete(userPhone);
-  await sendWhatsAppText({
-    to: userPhone,
-    body: "Your request has been canceled. Send a message to view the main menu.",
-  });
+  try {
+    await deleteSession(userPhone);
+    await sendWhatsAppText({
+      to: userPhone,
+      body: "Your request has been canceled. Send a message to view the main menu.",
+    });
+  } catch (err) {
+    console.error("deleteSession error:", err);
+  }
 }
 
 async function handleAwaitName(
@@ -112,6 +121,15 @@ async function handleAwaitName(
   session.state = "awaitingDate";
   const dateOptions = getNext7Days();
   session.dateOptions = dateOptions;
+  try {
+    await updateSession(userPhone, {
+      name: name,
+      state: "awaitingDate",
+      dateOptions: dateOptions,
+    });
+  } catch (err) {
+    console.error("updateSession error:", err);
+  }
   const dateMsg =
     `Thanks, ${name}! Please choose a date from the next 7 days:\n` +
     dateOptions
@@ -127,6 +145,13 @@ async function handleMainMenu(
 ): Promise<void> {
   if (message === "1" || message.includes("book")) {
     session.state = "awaitingName";
+    try {
+      await updateSession(userPhone, {
+        state: "awaitingName",
+      });
+    } catch (err) {
+      console.error("updateSession error:", err);
+    }
     await sendWhatsAppText({
       to: userPhone,
       body: "Great! Please enter your full name:",
@@ -150,6 +175,14 @@ async function handleMainMenu(
       const dateOptions = getNext7Days();
       session.dateOptions = dateOptions;
       session.state = "rescheduleNewDate";
+      try {
+        await updateSession(userPhone, {
+          dateOptions: dateOptions,
+          state: "rescheduleNewDate",
+        });
+      } catch (err) {
+        console.error("updateSession error:", err);
+      }
 
       const dateMsg =
         `Your current appointment:\n${formatDbDateWithDay(userAppt.date)} at ${userAppt.time}\n\nPlease choose a new date:\n` +
@@ -181,6 +214,13 @@ async function handleMainMenu(
     }
     if (userAppt) {
       session.state = "confirmCancel";
+      try {
+        await updateSession(userPhone, {
+          state: "confirmCancel",
+        });
+      } catch (err) {
+        console.error("updateSession error:", err);
+      }
       await sendWhatsAppText({
         to: userPhone,
         body: `Are you sure you want to cancel your appointment on ${formatDbDateWithDay(
@@ -198,7 +238,11 @@ async function handleMainMenu(
 
   if (message === "4" || message.includes("view")) {
     await showAppointments(userPhone);
-    phoneNumberToSession.delete(userPhone);
+    try {
+      await deleteSession(userPhone);
+    } catch (err) {
+      console.error("deleteSession error:", err);
+    }
     return;
   }
 
@@ -207,7 +251,11 @@ async function handleMainMenu(
       to: userPhone,
       body: contactDetails,
     });
-    phoneNumberToSession.delete(userPhone);
+    try {
+      await deleteSession(userPhone);
+    } catch (err) {
+      console.error("deleteSession error:", err);
+    }
     return;
   }
 
@@ -231,12 +279,24 @@ async function handleAwaitingDate(
     return;
   }
   const dateOptions = session.dateOptions;
+  try {
+    await updateSession(userPhone, {
+      dateOptions: dateOptions,
+      state: "awaitingDate",
+    });
+  } catch (err) {
+    console.error("updateSession error:", err);
+  }
   if (!dateOptions) {
     await sendWhatsAppText({
       to: userPhone,
       body: "Session expired. Please start again by typing 'book'.",
     });
-    phoneNumberToSession.delete(userPhone);
+    try {
+      await deleteSession(userPhone);
+    } catch (err) {
+      console.error("deleteSession error:", err);
+    }
     return;
   }
 
@@ -249,6 +309,14 @@ async function handleAwaitingDate(
     return;
   }
   session.selectedDate = pickedDate;
+  try {
+    await updateSession(userPhone, {
+      selectedDate: pickedDate,
+      state: "awaitingDate",
+    });
+  } catch (err) {
+    console.error("updateSession error:", err);
+  }
 
   const day = dayOfWeekLabel(pickedDate);
   if (day === "Sunday") {
@@ -269,9 +337,23 @@ async function handleAwaitingDate(
         body: `Sorry, no slots available on ${pickedDate}. Please choose another date.\n "NOTE:Please enter the word 'EXIT' to exit."`,
       });
       session.state = "awaitingDate";
+      try {
+        await updateSession(userPhone, {
+          state: "awaitingDate",
+        });
+      } catch (err) {
+        console.error("updateSession error:", err);
+      }
       return;
     }
     session.state = "awaitingTime";
+    try {
+      await updateSession(userPhone, {
+        state: "awaitingTime",
+      });
+    } catch (err) {
+      console.error("updateSession error:", err);
+    }
     const slotsMsg =
       `Available slots for ${pickedDate} (${day}):\n\n` +
       slots.map((s, i) => `${String(i + 1)}. ${s}`).join("\n") +
@@ -279,6 +361,13 @@ async function handleAwaitingDate(
     await sendWhatsAppText({ to: userPhone, body: slotsMsg });
   } else {
     session.state = "awaitingSession";
+    try {
+      await updateSession(userPhone, {
+        state: "awaitingSession",
+      });
+    } catch (err) {
+      console.error("updateSession error:", err);
+    }
     await sendWhatsAppText({
       to: userPhone,
       body: "Please choose your preference:\n1. Morning\n2. Afternoon \n\nNOTE: Please enter the word 'EXIT' to exit.",
@@ -304,6 +393,13 @@ async function handleAwaitingSession(
       body: "No date selected. Please choose a date first. \n NOTE:Please enter the word 'EXIT' to exit.",
     });
     session.state = "awaitingDate";
+    try {
+      await updateSession(userPhone, {
+        state: "awaitingDate",
+      });
+    } catch (err) {
+      console.error("updateSession error:", err);
+    }
     return;
   }
   const pref = message === "1" ? "morning" : "afternoon";
@@ -325,9 +421,23 @@ async function handleAwaitingSession(
       body: `Sorry, no ${pref} slots available on ${session.selectedDate ?? ""}. Please choose another date.\n NOTE:Please enter the word 'EXIT' to exit.`,
     });
     session.state = "awaitingDate";
+    try {
+      await updateSession(userPhone, {
+        state: "awaitingDate",
+      });
+    } catch (err) {
+      console.error("updateSession error:", err);
+    }
     return;
   }
   session.state = "awaitingTime";
+  try {
+    await updateSession(userPhone, {
+      state: "awaitingTime",
+    });
+  } catch (err) {
+    console.error("updateSession error:", err);
+  }
   const slotsMsg =
     `Available ${pref} slots for ${session.selectedDate ?? ""} (${dayOfWeekLabel(
       session.selectedDate ?? ""
@@ -349,6 +459,13 @@ async function handleAwaitingTime(
       body: "No date selected. Please choose a date first.\n\nNOTE: Please enter the word 'EXIT' to exit.",
     });
     session.state = "awaitingDate";
+    try {
+      await updateSession(userPhone, {
+        state: "awaitingDate",
+      });
+    } catch (err) {
+      console.error("updateSession error:", err);
+    }
     return;
   }
   let slots: string[] = [];
@@ -371,6 +488,14 @@ async function handleAwaitingTime(
   }
   session.selectedTime = slots[index - 1];
   session.state = "awaitingConfirm";
+  try {
+    await updateSession(userPhone, {
+      state: "awaitingConfirm",
+      selectedTime: slots[index - 1],
+    });
+  } catch (err) {
+    console.error("updateSession error:", err);
+  }
   await sendWhatsAppText({
     to: userPhone,
     body: `Confirm your booking:\n👤 ${session.name || ""}\n📅 Day: ${
@@ -403,7 +528,11 @@ async function handleAwaitingConfirm(
         to: userPhone,
         body: "Sorry, we couldn't confirm your booking due to a system error. Please try again.",
       });
-      phoneNumberToSession.delete(userPhone);
+      try {
+        await deleteSession(userPhone);
+      } catch (err) {
+        console.error("deleteSession error:", err);
+      }
       return;
     }
     await sendWhatsAppText({
@@ -451,14 +580,22 @@ async function handleAwaitingConfirm(
         console.error("sendWhatsAppTemplate error:", err);
       }
     }
-    phoneNumberToSession.delete(userPhone);
+    try {
+      await deleteSession(userPhone);
+    } catch (err) {
+      console.error("deleteSession error:", err);
+    }
     return;
   } else if (message === "no") {
     await sendWhatsAppText({
       to: userPhone,
       body: "❌ Booking cancelled",
     });
-    phoneNumberToSession.delete(userPhone);
+    try {
+      await deleteSession(userPhone);
+    } catch (err) {
+      console.error("deleteSession error:", err);
+    }
     return;
   }
 }
@@ -483,7 +620,11 @@ async function handleRescheduleNewDate(
       to: userPhone,
       body: "Session expired. Please start again by typing again .",
     });
-    phoneNumberToSession.delete(userPhone);
+    try {
+      await deleteSession(userPhone);
+    } catch (err) {
+      console.error("deleteSession error:", err);
+    }
     return;
   }
 
@@ -497,6 +638,14 @@ async function handleRescheduleNewDate(
   }
 
   session.selectedDate = pickedDate;
+  try {
+    await updateSession(userPhone, {
+      selectedDate: pickedDate,
+      state: "rescheduleNewDate",
+    });
+  } catch (err) {
+    console.error("updateSession error:", err);
+  }
 
   const day = dayOfWeekLabel(pickedDate);
   if (day === "Sunday") {
@@ -517,9 +666,23 @@ async function handleRescheduleNewDate(
         body: `Sorry, no slots available on ${pickedDate}. Please choose another date.\n\nNOTE: Please enter the word 'EXIT' to exit.`,
       });
       session.state = "rescheduleNewDate";
+      try {
+        await updateSession(userPhone, {
+          state: "rescheduleNewDate",
+        });
+      } catch (err) {
+        console.error("updateSession error:", err);
+      }
       return;
     }
     session.state = "rescheduleNewTime";
+    try {
+      await updateSession(userPhone, {
+        state: "rescheduleNewTime",
+      });
+    } catch (err) {
+      console.error("updateSession error:", err);
+    }
     const slotsMsg =
       `Available slots for ${pickedDate} (${day}):\n\n` +
       slots.map((s, i) => `${String(i + 1)}. ${s}`).join("\n") +
@@ -527,6 +690,13 @@ async function handleRescheduleNewDate(
     await sendWhatsAppText({ to: userPhone, body: slotsMsg });
   } else {
     session.state = "rescheduleSession";
+    try {
+      await updateSession(userPhone, {
+        state: "rescheduleSession",
+      });
+    } catch (err) {
+      console.error("updateSession error:", err);
+    }
     await sendWhatsAppText({
       to: userPhone,
       body: "Please choose your preference:\n 1. Morning\n 2. Afternoon \n\nNOTE: Please enter the word 'EXIT' to exit.",
@@ -564,9 +734,23 @@ async function handleRescheduleSession(
       body: `Sorry, no ${pref} slots available on ${session.selectedDate ?? ""}. Please choose another date.\n\nNOTE: Please enter the word 'EXIT' to exit.`,
     });
     session.state = "rescheduleNewDate";
+    try {
+      await updateSession(userPhone, {
+        state: "rescheduleNewDate",
+      });
+    } catch (err) {
+      console.error("updateSession error:", err);
+    }
     return;
   }
   session.state = "rescheduleNewTime";
+  try {
+    await updateSession(userPhone, {
+      state: "rescheduleNewTime",
+    });
+  } catch (err) {
+    console.error("updateSession error:", err);
+  }
   const slotsMsg =
     `Available ${pref} slots for ${session.selectedDate ?? ""} (${dayOfWeekLabel(
       session.selectedDate ?? ""
@@ -589,6 +773,13 @@ async function handleRescheduleNewTime(
       body: "No date selected. Please choose a date first.\n\nNOTE: Please enter the word 'EXIT' to exit.",
     });
     session.state = "rescheduleNewDate";
+    try {
+      await updateSession(userPhone, {
+        state: "rescheduleNewDate",
+      });
+    } catch (err) {
+      console.error("updateSession error:", err);
+    }
     return;
   }
   const slots: string[] = [];
@@ -614,6 +805,14 @@ async function handleRescheduleNewTime(
   }
   session.selectedTime = slots[index - 1];
   session.state = "rescheduleCheck";
+  try {
+    await updateSession(userPhone, {
+      selectedTime: slots[index - 1],
+      state: "rescheduleCheck",
+    });
+  } catch (err) {
+    console.error("updateSession error:", err);
+  }
   await sendWhatsAppText({
     to: userPhone,
 
@@ -636,7 +835,11 @@ async function handleRescheduleCheck(
 
         body: "Missing date or time. Please reschedule again.",
       });
-      phoneNumberToSession.delete(userPhone);
+      try {
+        await deleteSession(userPhone);
+      } catch (err) {
+        console.error("deleteSession error:", err);
+      }
       return;
     }
 
@@ -662,7 +865,11 @@ async function handleRescheduleCheck(
 
         body: "Sorry, we couldn't reschedule your appointment due to a system error. Please try again.",
       });
-      phoneNumberToSession.delete(userPhone);
+      try {
+        await deleteSession(userPhone);
+      } catch (err) {
+        console.error("deleteSession error:", err);
+      }
       return;
     }
     await sendWhatsAppText({
@@ -715,7 +922,11 @@ async function handleRescheduleCheck(
         ],
       });
     }
-    phoneNumberToSession.delete(userPhone);
+    try {
+      await deleteSession(userPhone);
+    } catch (err) {
+      console.error("deleteSession error:", err);
+    }
 
     return;
   } else if (message === "no") {
@@ -724,7 +935,11 @@ async function handleRescheduleCheck(
 
       body: "❌ Reschedule cancelled.",
     });
-    phoneNumberToSession.delete(userPhone);
+    try {
+      await deleteSession(userPhone);
+    } catch (err) {
+      console.error("deleteSession error:", err);
+    }
     return;
   }
 }
@@ -744,7 +959,11 @@ async function handleConfirmCancel(
 
         body: "Sorry, we couldn't cancel your appointment right now. Please try again later.",
       });
-      phoneNumberToSession.delete(userPhone);
+      try {
+        await deleteSession(userPhone);
+      } catch (err) {
+        console.error("deleteSession error:", err);
+      }
       return;
     }
     await sendWhatsAppText({
@@ -794,7 +1013,11 @@ async function handleConfirmCancel(
       body: "❌ Cancellation aborted.",
     });
   }
-  phoneNumberToSession.delete(userPhone);
+  try {
+    await deleteSession(userPhone);
+  } catch (err) {
+    console.error("deleteSession error:", err);
+  }
 }
 
 export async function handleUserReply(
@@ -806,8 +1029,8 @@ export async function handleUserReply(
     console.error("sendReadReceipt error:", err);
   });
   const now = Date.now();
-  const existing: AppointmentSession | undefined =
-    phoneNumberToSession.get(userPhone);
+  const existingSession: AppointmentSession | null =
+    await getSession(userPhone);
   const message = text.trim().toLowerCase();
 
   if (message === "exit") {
@@ -815,8 +1038,8 @@ export async function handleUserReply(
     return;
   }
 
-  if (!existing) {
-    phoneNumberToSession.set(userPhone, {
+  if (!existingSession) {
+    await setSession(userPhone, {
       state: "mainMenu",
       lastInteractionUnixMs: now,
     });
@@ -827,8 +1050,15 @@ export async function handleUserReply(
     return;
   }
 
-  const session: AppointmentSession = existing;
+  const session: AppointmentSession = existingSession;
   session.lastInteractionUnixMs = now;
+  try {
+    await updateSession(userPhone, {
+      lastInteractionUnixMs: now,
+    });
+  } catch (err) {
+    console.error("updateSession error:", err);
+  }
 
   if (session.state === "mainMenu") {
     await handleMainMenu(session, userPhone, message);

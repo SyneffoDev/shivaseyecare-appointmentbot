@@ -498,11 +498,11 @@ async function handleAwaitingTime(
   }
   await sendWhatsAppText({
     to: userPhone,
-    body: `Confirm your booking:\n👤 ${session.name || ""}\n📅 Day: ${
+    body: `Confirm your booking:\n👤Name: ${session.name || ""}\n📅 Date: ${
       session.selectedDate
-    } (${dayOfWeekLabel(session.selectedDate)})\n🕒 Date: ${
+    } (${dayOfWeekLabel(session.selectedDate)})\n🕒 Time: ${
       session.selectedTime || ""
-    }\n\nReply Yes or No.`,
+    }\n\nReply with Yes or No.`,
   });
 }
 
@@ -818,8 +818,8 @@ async function handleRescheduleNewTime(
 
     body:
       `Confirm your new appointment:\n` +
-      `📅 Day: ${session.selectedDate} (${dayOfWeekLabel(session.selectedDate)})\n` +
-      `🕒 Date: ${session.selectedTime ?? ""}\n\nReply Yes or No.`,
+      `📅 Date: ${session.selectedDate} (${dayOfWeekLabel(session.selectedDate)})\n` +
+      `🕒 Time: ${session.selectedTime ?? ""}\n\nReply with Yes or No.`,
   });
 }
 

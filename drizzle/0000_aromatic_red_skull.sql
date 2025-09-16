@@ -12,5 +12,10 @@ CREATE TABLE "appointments" (
 	"created_at" timestamp with time zone NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "sessions" (
+	"phone_number" text PRIMARY KEY NOT NULL,
+	"session" jsonb NOT NULL
+);
+--> statement-breakpoint
 CREATE INDEX "idx_appointments_user_phone" ON "appointments" USING btree ("user_phone" text_ops);
 */

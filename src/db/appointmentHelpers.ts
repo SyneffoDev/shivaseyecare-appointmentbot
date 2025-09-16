@@ -1,14 +1,7 @@
-import { SQL } from "bun";
-import { drizzle } from "drizzle-orm/bun-sql";
+import db from "./client";
 import { and, eq, gte } from "drizzle-orm";
 import { appointments } from "./schema";
 import dayjs from "dayjs";
-
-const client = new SQL({
-  url: process.env.DATABASE_URL,
-});
-
-const db = drizzle(client);
 
 export type Appointment = typeof appointments.$inferSelect;
 

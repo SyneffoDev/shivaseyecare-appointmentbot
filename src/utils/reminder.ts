@@ -1,5 +1,5 @@
 import { sendWhatsAppTemplate } from "./whatsappAPI";
-import { getAppointmentsByDate } from "../db/helpers";
+import { getAppointmentsByDate } from "../db/appointmentHelpers";
 import { dayOfWeekLabel } from "./dateHelper";
 import dayjs from "dayjs";
 

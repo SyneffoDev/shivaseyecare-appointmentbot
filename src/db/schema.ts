@@ -5,7 +5,9 @@ import {
   text,
   date,
   timestamp,
+  jsonb,
 } from "drizzle-orm/pg-core";
+import type { AppointmentSession } from "../utils/types";
 // import { sql } from "drizzle-orm"
 
 export const appointments = pgTable(
@@ -30,3 +32,8 @@ export const appointments = pgTable(
     ),
   ]
 );
+
+export const sessions = pgTable("sessions", {
+  phoneNumber: text("phone_number").primaryKey().notNull(),
+  session: jsonb().$type<AppointmentSession>().notNull(),
+});

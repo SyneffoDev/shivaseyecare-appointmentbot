@@ -1,4 +1,4 @@
-import { pgTable, index, serial, text, date, timestamp } from "drizzle-orm/pg-core"
+import { pgTable, index, serial, text, date, timestamp, jsonb } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 
@@ -15,3 +15,8 @@ export const appointments = pgTable("appointments", {
 }, (table) => [
 	index("idx_appointments_user_phone").using("btree", table.userPhone.asc().nullsLast().op("text_ops")),
 ]);
+
+export const sessions = pgTable("sessions", {
+	phoneNumber: text("phone_number").primaryKey().notNull(),
+	session: jsonb().notNull(),
+});

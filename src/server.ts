@@ -12,10 +12,21 @@ import type {
   WebhookEntry,
   WebhookMessage,
 } from "./utils/types";
+import { deleteExpiredSessions } from "./db/sessionHelpers";
 
 const port = parseInt(process.env.PORT || "3000");
 
 const app = new Hono();
+
+new Cron(
+  "*/1 * * * *",
+  {
+    timezone: "Asia/Kolkata",
+  },
+  async () => {
+    await deleteExpiredSessions();
+  }
+);
 
 new Cron(
   "0 7 * * *",

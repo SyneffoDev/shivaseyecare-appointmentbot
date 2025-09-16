@@ -1,5 +1,5 @@
 import db from "./client";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { sessions } from "./schema";
 import type { AppointmentSession } from "../utils/types";
 
@@ -46,4 +46,13 @@ export async function updateSession(
     lastInteractionUnixMs: partial.lastInteractionUnixMs ?? Date.now(),
   };
   await setSession(phoneNumber, merged);
+}
+
+export async function deleteExpiredSessions(): Promise<void> {
+  const cutoff = Date.now() - 1000 * 60 * 5;
+  await db
+    .delete(sessions)
+    .where(
+      sql`coalesce(jsonb_extract_path_text(${sessions.session}, 'lastInteractionUnixMs')::bigint, 0) < ${cutoff}`
+    );
 }

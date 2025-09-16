@@ -120,7 +120,6 @@ async function handleAwaitName(
   await sendWhatsAppText({ to: userPhone, body: dateMsg });
 }
 
-// State handlers
 async function handleMainMenu(
   session: AppointmentSession,
   userPhone: string,
@@ -416,35 +415,35 @@ async function handleAwaitingConfirm(
 
     if (adminPhoneNumber) {
       try {
-      await sendWhatsAppTemplate({
-        to: adminPhoneNumber,
-        templateName: "am_notification_appointment",
-        templateLanguage: "en",
-        components: [
-          {
-            type: "body",
-            parameters: [
-              {
-                type: "text",
-                parameter_name: "name",
-                text: session.name,
-              },
-              {
-                type: "text",
-                parameter_name: "phone",
-                text: `+${userPhone}`,
-              },
-              {
-                type: "text",
-                parameter_name: "date",
-                text: formatDisplayDateWithDay(session.selectedDate ?? ""),
-              },
-              {
-                type: "text",
-                parameter_name: "time",
-                text: session.selectedTime,
-              },
-            ],
+        await sendWhatsAppTemplate({
+          to: adminPhoneNumber,
+          templateName: "am_notification_appointment",
+          templateLanguage: "en",
+          components: [
+            {
+              type: "body",
+              parameters: [
+                {
+                  type: "text",
+                  parameter_name: "name",
+                  text: session.name,
+                },
+                {
+                  type: "text",
+                  parameter_name: "phone",
+                  text: `+${userPhone}`,
+                },
+                {
+                  type: "text",
+                  parameter_name: "date",
+                  text: formatDisplayDateWithDay(session.selectedDate ?? ""),
+                },
+                {
+                  type: "text",
+                  parameter_name: "time",
+                  text: session.selectedTime,
+                },
+              ],
             },
           ],
         });
@@ -831,40 +830,50 @@ export async function handleUserReply(
   const session: AppointmentSession = existing;
   session.lastInteractionUnixMs = now;
 
-  switch (session.state) {
-    case "mainMenu":
-      await handleMainMenu(session, userPhone, message);
-      return;
-    case "awaitingName":
-      await handleAwaitName(session, userPhone, text);
-      return;
-    case "awaitingDate":
-      await handleAwaitingDate(session, userPhone, message);
-      return;
-    case "awaitingSession":
-      await handleAwaitingSession(session, userPhone, message);
-      return;
-    case "awaitingTime":
-      await handleAwaitingTime(session, userPhone, message);
-      return;
-    case "awaitingConfirm":
-      await handleAwaitingConfirm(session, userPhone, message);
-      return;
-    case "rescheduleNewDate":
-      await handleRescheduleNewDate(session, userPhone, message);
-      return;
-    case "rescheduleSession":
-      await handleRescheduleSession(session, userPhone, message);
-      return;
-    case "rescheduleNewTime":
-      await handleRescheduleNewTime(session, userPhone, message);
-      return;
-    case "rescheduleCheck":
-      await handleRescheduleCheck(session, userPhone, message);
-      return;
-    case "confirmCancel":
-      await handleConfirmCancel(session, userPhone, message);
-      return;
+  if (session.state === "mainMenu") {
+    await handleMainMenu(session, userPhone, message);
+    return;
+  }
+  if (session.state === "awaitingName") {
+    await handleAwaitName(session, userPhone, text);
+    return;
+  }
+  if (session.state === "awaitingDate") {
+    await handleAwaitingDate(session, userPhone, message);
+    return;
+  }
+  if (session.state === "awaitingSession") {
+    await handleAwaitingSession(session, userPhone, message);
+    return;
+  }
+  if (session.state === "awaitingTime") {
+    await handleAwaitingTime(session, userPhone, message);
+    return;
+  }
+  if (session.state === "awaitingConfirm") {
+    await handleAwaitingConfirm(session, userPhone, message);
+    return;
+  }
+  if (session.state === "rescheduleNewDate") {
+    await handleRescheduleNewDate(session, userPhone, message);
+    return;
+  }
+  if (session.state === "rescheduleSession") {
+    await handleRescheduleSession(session, userPhone, message);
+    return;
+  }
+  if (session.state === "rescheduleNewTime") {
+    await handleRescheduleNewTime(session, userPhone, message);
+    return;
+  }
+  if (session.state === "rescheduleCheck") {
+    await handleRescheduleCheck(session, userPhone, message);
+    return;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  if (session.state === "confirmCancel") {
+    await handleConfirmCancel(session, userPhone, message);
+    return;
   }
 }
 

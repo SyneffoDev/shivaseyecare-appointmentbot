@@ -1,5 +1,5 @@
 import db from "./client";
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { sessions } from "./schema";
 import type { AppointmentSession } from "../utils/types";
 
@@ -49,10 +49,19 @@ export async function updateSession(
 }
 
 export async function deleteExpiredSessions(): Promise<void> {
-  const cutoff = Date.now() - 1000 * 60 * 5;
+  const cutoff = Date.now() - 1000 * 60 * 15;
+  const rows = await db.select().from(sessions);
+  const expiredPhoneNumbers = rows
+    .filter(
+      (row) =>
+        typeof row.session.lastInteractionUnixMs === "number" &&
+        row.session.lastInteractionUnixMs < cutoff
+    )
+    .map((row) => row.phoneNumber);
+
+  if (expiredPhoneNumbers.length === 0) return;
+
   await db
     .delete(sessions)
-    .where(
-      sql`coalesce(jsonb_extract_path_text(${sessions.session}, 'lastInteractionUnixMs')::bigint, 0) < ${cutoff}`
-    );
+    .where(inArray(sessions.phoneNumber, expiredPhoneNumbers));
 }

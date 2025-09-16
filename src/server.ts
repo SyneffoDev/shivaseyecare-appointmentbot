@@ -19,7 +19,7 @@ const port = parseInt(process.env.PORT || "3000");
 const app = new Hono();
 
 new Cron(
-  "*/1 * * * *",
+  "*/15 * * * *",
   {
     timezone: "Asia/Kolkata",
   },

@@ -18,6 +18,8 @@ export interface AppointmentSession {
   name?: string;
   lastInteractionUnixMs: number;
   dateOptions?: string[];
+  slotPreference?: "morning" | "afternoon";
+  slotOptions?: string[];
 }
 
 export interface WebhookMessage {

@@ -358,6 +358,8 @@ async function handleAwaitingDate(
       try {
         await updateSession(userPhone, {
           state: "awaitingDate",
+          slotPreference: undefined,
+          slotOptions: undefined,
         });
       } catch (err) {
         console.error("updateSession error:", err);
@@ -365,9 +367,13 @@ async function handleAwaitingDate(
       return;
     }
     session.state = "awaitingTime";
+    session.slotPreference = "morning";
+    session.slotOptions = slots;
     try {
       await updateSession(userPhone, {
         state: "awaitingTime",
+        slotPreference: "morning",
+        slotOptions: slots,
       });
     } catch (err) {
       console.error("updateSession error:", err);
@@ -379,9 +385,13 @@ async function handleAwaitingDate(
     await sendWhatsAppText({ to: userPhone, body: slotsMsg });
   } else {
     session.state = "awaitingSession";
+    session.slotPreference = undefined;
+    session.slotOptions = undefined;
     try {
       await updateSession(userPhone, {
         state: "awaitingSession",
+        slotPreference: undefined,
+        slotOptions: undefined,
       });
     } catch (err) {
       console.error("updateSession error:", err);
@@ -442,6 +452,8 @@ async function handleAwaitingSession(
     try {
       await updateSession(userPhone, {
         state: "awaitingDate",
+        slotPreference: undefined,
+        slotOptions: undefined,
       });
     } catch (err) {
       console.error("updateSession error:", err);
@@ -449,9 +461,13 @@ async function handleAwaitingSession(
     return;
   }
   session.state = "awaitingTime";
+  session.slotPreference = pref;
+  session.slotOptions = slots;
   try {
     await updateSession(userPhone, {
       state: "awaitingTime",
+      slotPreference: pref,
+      slotOptions: slots,
     });
   } catch (err) {
     console.error("updateSession error:", err);
@@ -480,22 +496,32 @@ async function handleAwaitingTime(
     try {
       await updateSession(userPhone, {
         state: "awaitingDate",
+        slotPreference: undefined,
+        slotOptions: undefined,
       });
     } catch (err) {
       console.error("updateSession error:", err);
     }
     return;
   }
-  let slots: string[] = [];
-  try {
-    slots = await getAvailableSlots(session.selectedDate);
-  } catch (err) {
-    console.error("getAvailableSlots error:", err);
-    await sendWhatsAppText({
-      to: userPhone,
-      body: "Sorry, we couldn't load available slots. Please try again later.",
-    });
-    return;
+  // Prefer the slots we already showed to the user to avoid mismatch
+  let slots: string[] = Array.isArray(session.slotOptions)
+    ? session.slotOptions
+    : [];
+  if (slots.length === 0) {
+    try {
+      slots = await getAvailableSlots(
+        session.selectedDate,
+        session.slotPreference
+      );
+    } catch (err) {
+      console.error("getAvailableSlots error:", err);
+      await sendWhatsAppText({
+        to: userPhone,
+        body: "Sorry, we couldn't load available slots. Please try again later.",
+      });
+      return;
+    }
   }
   if (Number.isNaN(index) || index < 1 || index > slots.length) {
     await sendWhatsAppText({
@@ -510,6 +536,8 @@ async function handleAwaitingTime(
     await updateSession(userPhone, {
       state: "awaitingConfirm",
       selectedTime: slots[index - 1],
+      slotOptions: undefined,
+      slotPreference: undefined,
     });
   } catch (err) {
     console.error("updateSession error:", err);
@@ -559,46 +587,48 @@ async function handleAwaitingConfirm(
         session.selectedDate ?? ""
       )} at ${session.selectedTime ?? ""}. We will send a reminder a day before your appointment.`,
     });
-
-    if (adminPhoneNumber) {
+    try {
+      if (adminPhoneNumber) {
+        await sendWhatsAppTemplate({
+          to: adminPhoneNumber,
+          templateName: "am_notification_appointment",
+          templateLanguage: "en",
+          components: [
+            {
+              type: "body",
+              parameters: [
+                {
+                  type: "text",
+                  parameter_name: "name",
+                  text: session.name,
+                },
+                {
+                  type: "text",
+                  parameter_name: "phone",
+                  text: `+${userPhone}`,
+                },
+                {
+                  type: "text",
+                  parameter_name: "date",
+                  text: formatDisplayDateWithDay(session.selectedDate ?? ""),
+                },
+                {
+                  type: "text",
+                  parameter_name: "time",
+                  text: session.selectedTime,
+                },
+              ],
+            },
+          ],
+        });
+      }
+    } catch (err) {
+      console.error("sendWhatsAppTemplate/deleteSession error:", err);
+    } finally {
       try {
-        await Promise.allSettled([
-          sendWhatsAppTemplate({
-            to: adminPhoneNumber,
-            templateName: "am_notification_appointment",
-            templateLanguage: "en",
-            components: [
-              {
-                type: "body",
-                parameters: [
-                  {
-                    type: "text",
-                    parameter_name: "name",
-                    text: session.name,
-                  },
-                  {
-                    type: "text",
-                    parameter_name: "phone",
-                    text: `+${userPhone}`,
-                  },
-                  {
-                    type: "text",
-                    parameter_name: "date",
-                    text: formatDisplayDateWithDay(session.selectedDate ?? ""),
-                  },
-                  {
-                    type: "text",
-                    parameter_name: "time",
-                    text: session.selectedTime,
-                  },
-                ],
-              },
-            ],
-          }),
-          deleteSession(userPhone),
-        ]);
+        await deleteSession(userPhone);
       } catch (err) {
-        console.error("sendWhatsAppTemplate/deleteSession error:", err);
+        console.error("deleteSession error:", err);
       }
     }
     return;
@@ -760,9 +790,13 @@ async function handleRescheduleSession(
     return;
   }
   session.state = "rescheduleNewTime";
+  session.slotPreference = pref;
+  session.slotOptions = slots;
   try {
     await updateSession(userPhone, {
       state: "rescheduleNewTime",
+      slotPreference: pref,
+      slotOptions: slots,
     });
   } catch (err) {
     console.error("updateSession error:", err);
@@ -798,18 +832,25 @@ async function handleRescheduleNewTime(
     }
     return;
   }
-  const slots: string[] = [];
-  try {
-    const slotsForDate = await getAvailableSlots(session.selectedDate);
-    slots.push(...slotsForDate);
-  } catch (err) {
-    console.error("getAvailableSlots error:", err);
-    await sendWhatsAppText({
-      to: userPhone,
+  // Use the exact options shown to the user earlier if available
+  let slots: string[] = Array.isArray(session.slotOptions)
+    ? session.slotOptions
+    : [];
+  if (slots.length === 0) {
+    try {
+      slots = await getAvailableSlots(
+        session.selectedDate,
+        session.slotPreference
+      );
+    } catch (err) {
+      console.error("getAvailableSlots error:", err);
+      await sendWhatsAppText({
+        to: userPhone,
 
-      body: "Sorry, we couldn't load available slots. Please try again later.",
-    });
-    return;
+        body: "Sorry, we couldn't load available slots. Please try again later.",
+      });
+      return;
+    }
   }
   if (Number.isNaN(index) || index < 1 || index > slots.length) {
     await sendWhatsAppText({
@@ -825,6 +866,8 @@ async function handleRescheduleNewTime(
     await updateSession(userPhone, {
       selectedTime: slots[index - 1],
       state: "rescheduleCheck",
+      slotOptions: undefined,
+      slotPreference: undefined,
     });
   } catch (err) {
     console.error("updateSession error:", err);

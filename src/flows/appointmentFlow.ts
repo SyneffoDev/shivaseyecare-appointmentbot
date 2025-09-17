@@ -6,6 +6,7 @@ import {
   toIsoDateFromDisplay,
   formatDisplayDateWithDay,
   formatDbDateWithDay,
+  getNext7Days,
 } from "../utils/dateHelper";
 import {
   sendWhatsAppText,
@@ -83,13 +84,6 @@ const contactDetails =
   "📞 Shivas Eye Care Contact:\n" +
   "044-2618-2803 or 044-2618-6500\n" +
   "📍 Plot no. 1818 ( New no. 134), 13th Main Road, Anna Nagar, Chennai";
-
-function getNext7Days(): string[] {
-  const today = dayjs();
-  return Array.from({ length: 7 }, (_, i) =>
-    today.add(i + 1, "day").format("DD/MM/YYYY")
-  );
-}
 
 async function handleExit(userPhone: string): Promise<void> {
   try {

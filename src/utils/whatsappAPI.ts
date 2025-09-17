@@ -170,6 +170,8 @@ export async function sendWhatsAppTemplate(args: {
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
+    console.log("response", response);
+    console.dir( args.components, { depth: Infinity });
     if (!response.ok) {
       console.warn(
         `[WARN] WhatsApp API responded with status ${response.status.toString()}`

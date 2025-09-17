@@ -638,6 +638,10 @@ async function handleAwaitingConfirm(
     }
     return;
   }
+  await sendWhatsAppText({
+    to: userPhone,
+    body: "Please reply with Yes or No to confirm your booking.\n\nType 'EXIT' to exit the booking process.",
+  });
 }
 
 async function handleRescheduleNewDate(
@@ -953,7 +957,7 @@ async function handleRescheduleCheck(
               {
                 type: "text",
                 parameter_name: "prev_date",
-                text: formatDisplayDateWithDay(existingAppt.date),
+                text: formatDbDateWithDay(existingAppt.date),
               },
               {
                 type: "text",
@@ -1002,74 +1006,88 @@ async function handleConfirmCancel(
   userPhone: string,
   message: string
 ): Promise<void> {
-  if (message === "yes") {
+  if (message !== "yes") {
+    await sendWhatsAppText({ to: userPhone, body: "Your appointment is not cancelled. ❌" });
     try {
-      await deleteAppointmentByUserPhone(userPhone);
+      await deleteSession(userPhone);
     } catch (err) {
-      console.error("deleteAppointmentByUserPhone error:", err);
-      await sendWhatsAppText({
-        to: userPhone,
-
-        body: "Sorry, we couldn't cancel your appointment right now. Please try again later.",
-      });
-      try {
-        await deleteSession(userPhone);
-      } catch (err) {
-        console.error("deleteSession error:", err);
-      }
-      return;
+      console.error("deleteSession error:", err);
     }
-    await sendWhatsAppText({
-      to: userPhone,
+    return;
+  }
 
+  let appointmentForParams: Appointment | null = null;
+  try {
+    appointmentForParams = await getAppointmentByUserPhone(userPhone);
+  } catch (err) {
+    console.error("getAppointmentByUserPhone (cancel) error:", err);
+  }
+
+  try {
+    await deleteAppointmentByUserPhone(userPhone);
+
+    const adminPromise = adminPhoneNumber
+      ? sendWhatsAppTemplate({
+          to: adminPhoneNumber,
+          templateName: "am_notification_cancellation",
+          templateLanguage: "en",
+          components: [
+            {
+              type: "body",
+              parameters: [
+                {
+                  type: "text",
+                  parameter_name: "name",
+                  text: appointmentForParams?.name ?? session.name ?? "",
+                },
+                { type: "text", parameter_name: "phone", text: `+${userPhone}` },
+                {
+                  type: "text",
+                  parameter_name: "date",
+                  text:
+                    (appointmentForParams
+                      ? formatDbDateWithDay(appointmentForParams.date)
+                      : formatDisplayDateWithDay(session.selectedDate ?? "")) ||
+                    "",
+                },
+                {
+                  type: "text",
+                  parameter_name: "time",
+                  text: appointmentForParams?.time ?? session.selectedTime ?? "",
+                },
+              ],
+            },
+          ],
+        })
+      : Promise.resolve();
+
+    const userPromise = sendWhatsAppText({
+      to: userPhone,
       body: "✅ Appointment cancelled successfully.",
     });
 
-    if (adminPhoneNumber) {
-      await sendWhatsAppTemplate({
-        to: adminPhoneNumber,
-        templateName: "am_notification_cancellation",
-        templateLanguage: "en",
-        components: [
-          {
-            type: "body",
-            parameters: [
-              {
-                type: "text",
-                parameter_name: "name",
-                text: session.name,
-              },
-              {
-                type: "text",
-                parameter_name: "phone",
-                text: `+${userPhone}`,
-              },
-              {
-                type: "text",
-                parameter_name: "date",
-                text: formatDisplayDateWithDay(session.selectedDate ?? ""),
-              },
-              {
-                type: "text",
-                parameter_name: "time",
-                text: session.selectedTime,
-              },
-            ],
-          },
-        ],
-      });
+    const [userResult, adminResult] = await Promise.allSettled([
+      userPromise,
+      adminPromise,
+    ]);
+    if (userResult.status === "rejected") {
+      console.error("sendWhatsAppText (user) error:", userResult.reason);
     }
-  } else {
+    if (adminResult.status === "rejected") {
+      console.error("sendWhatsAppTemplate (admin) error:", adminResult.reason);
+    }
+  } catch (err) {
+    console.error("cancel appointment error:", err);
     await sendWhatsAppText({
       to: userPhone,
-
-      body: "❌ Cancellation aborted.",
+      body: "Sorry, we couldn't cancel your appointment right now. Please try again later.",
     });
-  }
-  try {
-    await deleteSession(userPhone);
-  } catch (err) {
-    console.error("deleteSession error:", err);
+  } finally {
+    try {
+      await deleteSession(userPhone);
+    } catch (err) {
+      console.error("deleteSession error:", err);
+    }
   }
 }
 

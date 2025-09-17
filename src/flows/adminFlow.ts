@@ -34,15 +34,6 @@ const adminMainMenuMessage =
   "1. View today's appointments\n" +
   "2. View appointments by date";
 
-function buildAppointmentNamesList(appointments: Appointment[]): string {
-  return appointments
-    .map(
-      (appointment, index) =>
-        `${String(index + 1)}. ${appointment.name || "(no name)"}`
-    )
-    .join("\n");
-}
-
 async function sendAdminMainMenu(toNumber: string): Promise<void> {
   await sendWhatsAppText({
     to: toNumber,
@@ -81,10 +72,14 @@ async function handleMainMenuState(
     session.selectedDate = isoDate;
     session.currentList = appointmentsForDay;
     session.state = "awaitingAppointmentChoice";
-    const names = buildAppointmentNamesList(appointmentsForDay);
+    const namesAndTimeSlots: { name: string; time: string }[] =
+      appointmentsForDay.map((appointment) => ({
+        name: appointment.name || "(no name)",
+        time: appointment.time,
+      }));
     await sendWhatsAppText({
       to: toNumber,
-      body: `Appointments for ${formatDbDateWithDay(isoDate)}:\n\n${names}\n\nReply with a number to view details, or type 'menu'.`,
+      body: `Appointments for ${formatDbDateWithDay(isoDate)}:\n\n${namesAndTimeSlots.map((item, index) => ` ${String(index + 1)}. ${item.name} - ${item.time}`).join("\n")}\n\nReply with a number to view details, or type 'menu'.`,
     });
     return;
   }
@@ -159,10 +154,14 @@ async function handleAwaitingDateState(
   }
 
   session.state = "awaitingAppointmentChoice";
-  const names = buildAppointmentNamesList(appointmentsForDay);
+  const namesAndTimeSlots: { name: string; time: string }[] =
+    appointmentsForDay.map((appointment) => ({
+      name: appointment.name || "(no name)",
+      time: appointment.time,
+    }));
   await sendWhatsAppText({
     to: toNumber,
-    body: `Appointments for ${formatDbDateWithDay(isoDate)}:\n\n${names}\n\nReply with a number to view details, or type 'menu'.`,
+    body: `Appointments for ${formatDbDateWithDay(isoDate)}:\n\n${namesAndTimeSlots.map((item, index) => ` ${String(index + 1)}. ${item.name} - ${item.time}`).join("\n")}\n\nReply with a number to view details, or type 'menu'.`,
   });
 }
 

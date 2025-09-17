@@ -1,0 +1,59 @@
+name: Lint & Format Checks
+
+on:
+  workflow_call:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-format:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun ci
+
+      - name: Check formatting (Prettier)
+        run: bun run format:check
+
+      - name: Run ESLint
+        run: bun run lint
+
+      # Always show guidance if any of the above steps fail
+      - name: Show fix instructions
+        if: failure()
+        run: |
+          echo "::notice title=Formatting failed::Run 'bun run format' locally to fix formatting."
+          echo "::notice title=Lint failed::Run 'bun run lint:fix' locally to auto-fix lintable issues."
+
+      - name: Comment on PR with fix instructions
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const body = [
+              '⚠️ CI checks failed.',
+              '',
+              '**Fix instructions**:',
+              '- Run `bun run format` locally to fix formatting.',
+              '- Run `bun run lint:fix` locally to auto-fix lintable issues.'
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body
+            });

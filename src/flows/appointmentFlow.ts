@@ -1007,7 +1007,10 @@ async function handleConfirmCancel(
   message: string
 ): Promise<void> {
   if (message !== "yes") {
-    await sendWhatsAppText({ to: userPhone, body: "Your appointment is not cancelled. ❌" });
+    await sendWhatsAppText({
+      to: userPhone,
+      body: "Your appointment is not cancelled. ❌",
+    });
     try {
       await deleteSession(userPhone);
     } catch (err) {
@@ -1040,7 +1043,11 @@ async function handleConfirmCancel(
                   parameter_name: "name",
                   text: appointmentForParams?.name ?? session.name ?? "",
                 },
-                { type: "text", parameter_name: "phone", text: `+${userPhone}` },
+                {
+                  type: "text",
+                  parameter_name: "phone",
+                  text: `+${userPhone}`,
+                },
                 {
                   type: "text",
                   parameter_name: "date",
@@ -1053,7 +1060,8 @@ async function handleConfirmCancel(
                 {
                   type: "text",
                   parameter_name: "time",
-                  text: appointmentForParams?.time ?? session.selectedTime ?? "",
+                  text:
+                    appointmentForParams?.time ?? session.selectedTime ?? "",
                 },
               ],
             },

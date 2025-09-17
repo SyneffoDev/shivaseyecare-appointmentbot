@@ -14,7 +14,6 @@ import {
 } from "../utils/whatsappAPI";
 import {
   createAppointment,
-  getAllAppointments,
   getAppointmentByUserPhone,
   getAppointmentsByDate,
   updateAppointment as updateAppointmentInDb,
@@ -145,6 +144,25 @@ async function handleMainMenu(
 ): Promise<void> {
   if (message === "1" || message.includes("book")) {
     session.state = "awaitingName";
+
+    try {
+      const userAppt = await getAppointmentByUserPhone(userPhone);
+      if (userAppt) {
+        await sendWhatsAppText({
+          to: userPhone,
+          body: "You already have an appointment. Please reschedule or cancel it first.",
+        });
+        await deleteSession(userPhone);
+        return;
+      }
+    } catch (err) {
+      console.error("getAppointmentByUserPhone error:", err);
+      await sendWhatsAppText({
+        to: userPhone,
+        body: "Sorry, we couldn't check your appointment right now. Please try again later.",
+      });
+      return;
+    }
     try {
       await updateSession(userPhone, {
         state: "awaitingName",
@@ -167,7 +185,7 @@ async function handleMainMenu(
       console.error("getAppointmentByUserPhone error:", err);
       await sendWhatsAppText({
         to: userPhone,
-        body: "Sorry, we couldn't fetch your appointment right now. Please try again later.",
+        body: "Sorry, we couldn't check your appointment right now. Please try again later.",
       });
       return;
     }
@@ -544,46 +562,44 @@ async function handleAwaitingConfirm(
 
     if (adminPhoneNumber) {
       try {
-        await sendWhatsAppTemplate({
-          to: adminPhoneNumber,
-          templateName: "am_notification_appointment",
-          templateLanguage: "en",
-          components: [
-            {
-              type: "body",
-              parameters: [
-                {
-                  type: "text",
-                  parameter_name: "name",
-                  text: session.name,
-                },
-                {
-                  type: "text",
-                  parameter_name: "phone",
-                  text: `+${userPhone}`,
-                },
-                {
-                  type: "text",
-                  parameter_name: "date",
-                  text: formatDisplayDateWithDay(session.selectedDate ?? ""),
-                },
-                {
-                  type: "text",
-                  parameter_name: "time",
-                  text: session.selectedTime,
-                },
-              ],
-            },
-          ],
-        });
+        await Promise.allSettled([
+          sendWhatsAppTemplate({
+            to: adminPhoneNumber,
+            templateName: "am_notification_appointment",
+            templateLanguage: "en",
+            components: [
+              {
+                type: "body",
+                parameters: [
+                  {
+                    type: "text",
+                    parameter_name: "name",
+                    text: session.name,
+                  },
+                  {
+                    type: "text",
+                    parameter_name: "phone",
+                    text: `+${userPhone}`,
+                  },
+                  {
+                    type: "text",
+                    parameter_name: "date",
+                    text: formatDisplayDateWithDay(session.selectedDate ?? ""),
+                  },
+                  {
+                    type: "text",
+                    parameter_name: "time",
+                    text: session.selectedTime,
+                  },
+                ],
+              },
+            ],
+          }),
+          deleteSession(userPhone),
+        ]);
       } catch (err) {
-        console.error("sendWhatsAppTemplate error:", err);
+        console.error("sendWhatsAppTemplate/deleteSession error:", err);
       }
-    }
-    try {
-      await deleteSession(userPhone);
-    } catch (err) {
-      console.error("deleteSession error:", err);
     }
     return;
   } else if (message === "no") {
@@ -1110,25 +1126,27 @@ export async function handleUserReply(
 async function showAppointments(userPhone: string): Promise<void> {
   const list: Appointment[] = [];
   try {
-    const listForUser = await getAllAppointments();
-    list.push(...listForUser);
+    const listForUser = await getAppointmentByUserPhone(userPhone);
+    if (listForUser) {
+      list.push(listForUser);
+    }
   } catch (err) {
-    console.error("getAllAppointments error:", err);
+    console.error("getAppointmentByUserPhone error:", err);
     await sendWhatsAppText({
       to: userPhone,
-      body: "Sorry, we couldn't retrieve your appointments right now. Please try again later.",
+      body: "Sorry, we couldn't retrieve your appointment right now. Please try again later.",
     });
     return;
   }
-  const mine = list.filter((a) => a.userPhone === userPhone);
-  if (mine.length === 0) {
+
+  if (list.length === 0) {
     await sendWhatsAppText({
       to: userPhone,
       body: "No appointments found.Book to schedule one.",
     });
     return;
   }
-  const lines = mine
+  const lines = list
     .map(
       (a, i) =>
         `${String(i + 1)}. ${formatDbDateWithDay(a.date)} at ${a.time} — ${a.serviceTitle} (${a.name})`

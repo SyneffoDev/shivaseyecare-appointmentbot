@@ -23,7 +23,7 @@ export async function sendReminder(date: string) {
     const newDate = formatDate(appointment.date);
     await sendWhatsAppTemplate({
       to: appointment.userPhone,
-      templateName: "appointment",
+      templateName: "reminder",
       templateLanguage: "en",
       components: [
         {

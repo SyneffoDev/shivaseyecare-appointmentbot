@@ -36,41 +36,6 @@ function normalizeTimeLabel(input: string): string {
   return input.replace(/\s+/g, " ").trim().toUpperCase();
 }
 
-/*async function getAvailableSlots(
-  date: string,
-  preference?: "morning" | "evening"
-): Promise<string[]> {
-  const day = dayOfWeekLabel(date);
-  let baseSlots: string[];
-
-  if (day === "Sunday") {
-    baseSlots = MorningSlots;
-  } else {
-    if (preference === "morning") {
-      baseSlots = MorningSlots;
-    } else if (preference === "evening") {
-      baseSlots = EveningSlots;
-    } else {
-      baseSlots = [...MorningSlots, ...EveningSlots];
-    }
-  }
-
-  
-  const isoDate = toIsoDateFromDisplay(date);
-  let appointmentsOnDate: Appointment[];
-  try {
-    appointmentsOnDate = await getAppointmentsByDate(isoDate);
-  } catch (err) {
-    throw err;
-  }
-  const bookedSlots = appointmentsOnDate.map((a) =>
-    normalizeTimeLabel(a.time as unknown as string)
-  );
-  return baseSlots.filter(
-    (slot) => !bookedSlots.includes(normalizeTimeLabel(slot))
-  );
-}*/
-
 async function getAvailableSlots(
   date: string,
   preference?: "morning" | "evening"
@@ -102,37 +67,30 @@ async function getAvailableSlots(
     normalizeTimeLabel(a.time as unknown as string)
   );
 
-  // ---- determine whether selected date is today ----
-  // parse date string using the same format getNext7Days() returns (DD/MM/YYYY)
   const parsedSelectedDate = dayjs(date, "DD/MM/YYYY", true);
   const isToday = parsedSelectedDate.isValid()
     ? parsedSelectedDate.isSame(dayjs(), "day")
     : false;
 
-  // formats we will try when parsing "DD/MM/YYYY <slot>"
   const dateTimeFormats = [
-    "DD/MM/YYYY h:mm A", // ex: 7:30 AM
-    "DD/MM/YYYY hh:mm A", // ex: 07:30 AM
-    "DD/MM/YYYY H:mm", // ex: 7:30 (24h)
-    "DD/MM/YYYY HH:mm", // ex: 07:30 (24h)
+    "DD/MM/YYYY h:mm A",
+    "DD/MM/YYYY hh:mm A",
+    "DD/MM/YYYY H:mm",
+    "DD/MM/YYYY HH:mm",
   ];
 
   if (isToday) {
     const now = dayjs();
-    // filter baseSlots to slots strictly after now
     const futureSlots = baseSlots.filter((slot) => {
       const combined = `${date} ${slot}`;
 
-      // try strict parsing with multiple formats
       let slotTime = dayjs(combined, dateTimeFormats, true);
 
-      // as a tolerant fallback, try non-strict parsing if strict failed
       if (!slotTime.isValid()) {
         slotTime = dayjs(combined, dateTimeFormats, false);
       }
 
       if (!slotTime.isValid()) {
-        // couldn't parse — log and drop this slot (prevents accidental inclusion)
         console.warn(
           "[getAvailableSlots] could not parse slot time:",
           combined,
@@ -141,17 +99,14 @@ async function getAvailableSlots(
         return false;
       }
 
-      // require slot to be strictly after now (if user messaged at 10:00, 10:00 slot is excluded)
       return slotTime.isAfter(now);
     });
 
-    // remove booked slots and return
     return futureSlots.filter(
       (slot) => !bookedSlots.includes(normalizeTimeLabel(slot))
     );
   }
 
-  // not today: return baseSlots minus booked slots (existing behavior)
   return baseSlots.filter(
     (slot) => !bookedSlots.includes(normalizeTimeLabel(slot))
   );

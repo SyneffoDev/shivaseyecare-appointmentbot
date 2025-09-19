@@ -1,0 +1,75 @@
+name: Deploy to Production
+
+on:
+  workflow_run:
+    workflows: ["Lint & Format Checks"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ false && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to server
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+            set -e
+            
+            # Navigate to project directory
+            cd ${{ secrets.DEPLOY_PATH || '/var/www/your-app' }}
+            
+            # Pull latest changes
+            git pull origin main
+            
+            # Create/update .env file with secrets
+            cat > .env << EOL
+          PORT=${{ secrets.PORT || '3000' }}
+          WEBHOOK_VERIFY_TOKEN=${{ secrets.WEBHOOK_VERIFY_TOKEN }}
+          WHATSAPP_TOKEN=${{ secrets.WHATSAPP_TOKEN }}
+          NUMBER_ID=${{ secrets.NUMBER_ID }}
+          ADMIN_PHONE_NUMBER=${{ secrets.ADMIN_PHONE_NUMBER }}
+          GRAPH_API_VERSION=${{ secrets.GRAPH_API_VERSION || 'v23.0' }}
+          URL_TOKEN=${{ secrets.URL_TOKEN }}
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          EOL    
+            bun ci
+            pm2 restart your-app-name || pm2 start ecosystem.config.js
+            echo "Deployment completed successfully!"
+          EOF
+
+      - name: Verify deployment
+        run: |
+          # Wait a few seconds for the app to start
+          sleep 10
+
+          # Health check (adjust URL as needed)
+          curl -f ${{ secrets.APP_URL }}/health || echo "Health check failed or endpoint not available"
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "::notice title=Deployment Successful::Application deployed successfully to production"
+          else
+            echo "::error title=Deployment Failed::Deployment to production failed"
+          fi

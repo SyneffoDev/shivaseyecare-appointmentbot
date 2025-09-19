@@ -10,7 +10,7 @@ export const MorningSlots: string[] = [
   "12:40 PM",
 ];
 
-export const AfternoonSlots: string[] = [
+export const EveningSlots: string[] = [
   "04:30 PM",
   "04:50 PM",
   "05:10 PM",

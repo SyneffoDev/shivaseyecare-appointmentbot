@@ -53,6 +53,6 @@ export function formatDbDateWithDay(value: unknown): string {
 export function getNext7Days(): string[] {
   const today = dayjs();
   return Array.from({ length: 7 }, (_, i) =>
-    today.add(i + 1, "day").format("DD/MM/YYYY")
+    today.add(i, "day").format("DD/MM/YYYY")
   );
 }

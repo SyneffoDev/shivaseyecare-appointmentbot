@@ -29,7 +29,7 @@ import {
 
 import type { AppointmentSession } from "../utils/types";
 import type { Appointment } from "../db/appointmentHelpers";
-import { MorningSlots, AfternoonSlots } from "../utils/appointmentData";
+import { MorningSlots, EveningSlots } from "../utils/appointmentData";
 import { adminPhoneNumber } from "../utils/whatsappAPI";
 
 function normalizeTimeLabel(input: string): string {
@@ -38,7 +38,7 @@ function normalizeTimeLabel(input: string): string {
 
 async function getAvailableSlots(
   date: string,
-  preference?: "morning" | "afternoon"
+  preference?: "morning" | "evening"
 ): Promise<string[]> {
   const day = dayOfWeekLabel(date);
   let baseSlots: string[];
@@ -48,10 +48,10 @@ async function getAvailableSlots(
   } else {
     if (preference === "morning") {
       baseSlots = MorningSlots;
-    } else if (preference === "afternoon") {
-      baseSlots = AfternoonSlots;
+    } else if (preference === "evening") {
+      baseSlots = EveningSlots;
     } else {
-      baseSlots = [...MorningSlots, ...AfternoonSlots];
+      baseSlots = [...MorningSlots, ...EveningSlots];
     }
   }
 
@@ -62,9 +62,51 @@ async function getAvailableSlots(
   } catch (err) {
     throw err;
   }
+
   const bookedSlots = appointmentsOnDate.map((a) =>
     normalizeTimeLabel(a.time as unknown as string)
   );
+
+  const parsedSelectedDate = dayjs(date, "DD/MM/YYYY", true);
+  const isToday = parsedSelectedDate.isValid()
+    ? parsedSelectedDate.isSame(dayjs(), "day")
+    : false;
+
+  const dateTimeFormats = [
+    "DD/MM/YYYY h:mm A",
+    "DD/MM/YYYY hh:mm A",
+    "DD/MM/YYYY H:mm",
+    "DD/MM/YYYY HH:mm",
+  ];
+
+  if (isToday) {
+    const now = dayjs();
+    const futureSlots = baseSlots.filter((slot) => {
+      const combined = `${date} ${slot}`;
+
+      let slotTime = dayjs(combined, dateTimeFormats, true);
+
+      if (!slotTime.isValid()) {
+        slotTime = dayjs(combined, dateTimeFormats, false);
+      }
+
+      if (!slotTime.isValid()) {
+        console.warn(
+          "[getAvailableSlots] could not parse slot time:",
+          combined,
+          "— dropping this slot"
+        );
+        return false;
+      }
+
+      return slotTime.isAfter(now);
+    });
+
+    return futureSlots.filter(
+      (slot) => !bookedSlots.includes(normalizeTimeLabel(slot))
+    );
+  }
+
   return baseSlots.filter(
     (slot) => !bookedSlots.includes(normalizeTimeLabel(slot))
   );
@@ -90,7 +132,7 @@ async function handleExit(userPhone: string): Promise<void> {
     await deleteSession(userPhone);
     await sendWhatsAppText({
       to: userPhone,
-      body: "Your request has been canceled. Send a message to view the main menu.",
+      body: "Your request has been canceled. \n\nSend a message to view the main menu.",
     });
   } catch (err) {
     console.error("deleteSession error:", err);
@@ -144,7 +186,7 @@ async function handleMainMenu(
       if (userAppt) {
         await sendWhatsAppText({
           to: userPhone,
-          body: "You already have an appointment. Please reschedule or cancel it first.",
+          body: "You already have an appointment. Please reschedule or cancel it first. \n\nSend a message to view the main menu.",
         });
         await deleteSession(userPhone);
         return;
@@ -179,7 +221,7 @@ async function handleMainMenu(
       console.error("getAppointmentByUserPhone error:", err);
       await sendWhatsAppText({
         to: userPhone,
-        body: "Sorry, we couldn't check your appointment right now. Please try again later.",
+        body: "Sorry, we couldn't check your appointment right now. Please try again later.\n\n Send a message to view the main menu.",
       });
       return;
     }
@@ -206,7 +248,7 @@ async function handleMainMenu(
     } else {
       await sendWhatsAppText({
         to: userPhone,
-        body: "No booking found. book to create a new appointment.",
+        body: "No booking found. book to create a new appointment. \n\nSend a message to view the main menu.",
       });
     }
     return;
@@ -242,7 +284,7 @@ async function handleMainMenu(
     } else {
       await sendWhatsAppText({
         to: userPhone,
-        body: "No appointment found to cancel.",
+        body: "No appointment found to cancel.\n\n Send a message to view the main menu.",
       });
     }
     return;
@@ -302,7 +344,7 @@ async function handleAwaitingDate(
   if (!dateOptions) {
     await sendWhatsAppText({
       to: userPhone,
-      body: "Session expired. Please start again by typing 'book'.",
+      body: "Session expired. Please start again by Sending a message to view the main menu.",
     });
     try {
       await deleteSession(userPhone);
@@ -392,7 +434,7 @@ async function handleAwaitingDate(
     }
     await sendWhatsAppText({
       to: userPhone,
-      body: "Please choose your preference:\n1. Morning\n2. Afternoon \n\nNOTE: Please enter the word 'EXIT' to exit.",
+      body: "Please choose your preference:\n1. Morning\n2. Evening \n\nNOTE: Please enter the word 'EXIT' to exit.",
     });
   }
 }
@@ -405,7 +447,7 @@ async function handleAwaitingSession(
   if (message !== "1" && message !== "2") {
     await sendWhatsAppText({
       to: userPhone,
-      body: "Invalid choice. Reply 1 for Morning or 2 for Afternoon.\n NOTE:Please enter the word 'EXIT' to exit.",
+      body: "Invalid choice. Reply 1 for Morning or 2 for Evening.\n NOTE:Please enter the word 'EXIT' to exit.",
     });
     return;
   }
@@ -424,7 +466,7 @@ async function handleAwaitingSession(
     }
     return;
   }
-  const pref = message === "1" ? "morning" : "afternoon";
+  const pref = message === "1" ? "morning" : "evening";
   let slots: string[] = [];
   try {
     slots = await getAvailableSlots(session.selectedDate, pref);
@@ -579,7 +621,7 @@ async function handleAwaitingConfirm(
       to: userPhone,
       body: `✅ Appointment confirmed for ${formatDisplayDateWithDay(
         session.selectedDate ?? ""
-      )} at ${session.selectedTime ?? ""}. We will send a reminder a day before your appointment.`,
+      )} at ${session.selectedTime ?? ""}. We will send a reminder a day before your appointment.\n\n Send a message to view the main menu.`,
     });
     try {
       if (adminPhoneNumber) {
@@ -629,7 +671,7 @@ async function handleAwaitingConfirm(
   } else if (message === "no") {
     await sendWhatsAppText({
       to: userPhone,
-      body: "❌ Booking cancelled",
+      body: "❌ Booking cancelled . \n\nSend a message to view the main menu.",
     });
     try {
       await deleteSession(userPhone);
@@ -662,7 +704,7 @@ async function handleRescheduleNewDate(
   if (!dateOptions) {
     await sendWhatsAppText({
       to: userPhone,
-      body: "Session expired. Please start again by typing again .",
+      body: "Session expired. Please start again by Sending a message to view the main menu.",
     });
     try {
       await deleteSession(userPhone);
@@ -743,7 +785,7 @@ async function handleRescheduleNewDate(
     }
     await sendWhatsAppText({
       to: userPhone,
-      body: "Please choose your preference:\n 1. Morning\n 2. Afternoon \n\nNOTE: Please enter the word 'EXIT' to exit.",
+      body: "Please choose your preference:\n 1. Morning\n 2. Evening \n\nNOTE: Please enter the word 'EXIT' to exit.",
     });
   }
 }
@@ -756,11 +798,11 @@ async function handleRescheduleSession(
   if (message !== "1" && message !== "2") {
     await sendWhatsAppText({
       to: userPhone,
-      body: "Invalid choice. Reply 1 for Morning or 2 for Afternoon. \n\nNOTE: Please enter the word 'EXIT' to exit.",
+      body: "Invalid choice. Reply 1 for Morning or 2 for Evening. \n\nNOTE: Please enter the word 'EXIT' to exit.",
     });
     return;
   }
-  const pref = message === "1" ? "morning" : "afternoon";
+  const pref = message === "1" ? "morning" : "evening";
   let slots: string[] = [];
   try {
     slots = await getAvailableSlots(session.selectedDate ?? "", pref);
@@ -890,7 +932,7 @@ async function handleRescheduleCheck(
       await sendWhatsAppText({
         to: userPhone,
 
-        body: "Missing date or time. Please reschedule again.",
+        body: "Missing date or time. Please reschedule again.\n\n Send a message to view the main menu.",
       });
       try {
         await deleteSession(userPhone);
@@ -932,7 +974,7 @@ async function handleRescheduleCheck(
     await sendWhatsAppText({
       to: userPhone,
 
-      body: `✅ Appointment successfully rescheduled to ${formatDisplayDateWithDay(session.selectedDate)} at ${session.selectedTime}.`,
+      body: `✅ Appointment successfully rescheduled to ${formatDisplayDateWithDay(session.selectedDate)} at ${session.selectedTime}.\n\n Send a message to view the main menu.`,
     });
 
     if (adminPhoneNumber && existingAppt) {
@@ -990,7 +1032,7 @@ async function handleRescheduleCheck(
     await sendWhatsAppText({
       to: userPhone,
 
-      body: "❌ Reschedule cancelled.",
+      body: "❌ Reschedule cancelled. \n\nSend a message to view the main menu.",
     });
     try {
       await deleteSession(userPhone);
@@ -1009,7 +1051,7 @@ async function handleConfirmCancel(
   if (message !== "yes") {
     await sendWhatsAppText({
       to: userPhone,
-      body: "Your appointment is not cancelled. ❌",
+      body: "Your appointment is not cancelled. ❌ \n\nSend a message to view the main menu.",
     });
     try {
       await deleteSession(userPhone);
@@ -1071,7 +1113,7 @@ async function handleConfirmCancel(
 
     const userPromise = sendWhatsAppText({
       to: userPhone,
-      body: "✅ Appointment cancelled successfully.",
+      body: "✅ Appointment cancelled successfully.\n\nSend a message to view the main menu.",
     });
 
     const [userResult, adminResult] = await Promise.allSettled([
@@ -1205,7 +1247,7 @@ async function showAppointments(userPhone: string): Promise<void> {
   if (list.length === 0) {
     await sendWhatsAppText({
       to: userPhone,
-      body: "No appointments found.Book to schedule one.",
+      body: "No appointments found.Book to schedule one. \n\nSend a message to view the main menu.",
     });
     return;
   }
@@ -1217,6 +1259,6 @@ async function showAppointments(userPhone: string): Promise<void> {
     .join("\n");
   await sendWhatsAppText({
     to: userPhone,
-    body: `Your appointments:\n\n${lines}`,
+    body: `Your appointments:\n\n${lines} \n\n Send a message to view the main menu.`,
   });
 }

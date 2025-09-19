@@ -18,7 +18,7 @@ export interface AppointmentSession {
   name?: string;
   lastInteractionUnixMs: number;
   dateOptions?: string[];
-  slotPreference?: "morning" | "afternoon";
+  slotPreference?: "morning" | "evening";
   slotOptions?: string[];
 }
 

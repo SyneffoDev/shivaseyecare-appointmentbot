@@ -115,7 +115,7 @@ async function getAvailableSlots(
 const mainMenuMessage =
   "Hello! 👋 Welcome to Shivas Eye Care 🏥 \n" +
   "How can we assist you today? \n\n" +
-  "Please choose an option below:\n" +
+  "Please choose an option number below:\n" +
   "1. Book an Appointment \n" +
   "2. Reschedule Appointment \n" +
   "3. Cancel Appointment \n" +
@@ -123,9 +123,10 @@ const mainMenuMessage =
   "5. Contact Support ";
 
 const contactDetails =
-  "📞 Shivas Eye Care Contact:\n" +
-  "044-2618-2803 or 044-2618-6500\n" +
-  "📍 Plot no. 1818 ( New no. 134), 13th Main Road, Anna Nagar, Chennai";
+  "🏥 Shivas Eye Care Contact:\n" +
+  "📞 Phone: +919840088522 or +919840174184 or +918667302776\n" +
+  "📍 Address:134/1818, 13th Main Rd, Thiruvalluvar Colony, Anna Nagar, Chennai, Tamil Nadu 600040\n\n" +
+  "📌 Maps: https://maps.app.goo.gl/BpiRvFM1e9ZukTvW8";
 
 async function handleExit(userPhone: string): Promise<void> {
   try {
@@ -166,7 +167,7 @@ async function handleAwaitName(
     console.error("updateSession error:", err);
   }
   const dateMsg =
-    `Thanks, ${name}! Please choose a date from the next 7 days:\n` +
+    `Welcome, ${name}! Please choose a date from the next 7 days:\n` +
     dateOptions
       .map((d, i) => `${String(i + 1)}. ${d} (${dayOfWeekLabel(d)})`)
       .join("\n");
@@ -208,7 +209,7 @@ async function handleMainMenu(
     }
     await sendWhatsAppText({
       to: userPhone,
-      body: "Great! Please enter your full name:",
+      body: "Welcome! To book an appointment, please enter your full name:",
     });
     return;
   }
@@ -239,7 +240,7 @@ async function handleMainMenu(
       }
 
       const dateMsg =
-        `Your current appointment:\n${formatDbDateWithDay(userAppt.date)} at ${userAppt.time}\n\nPlease choose a new date:\n` +
+        `Your current appointment:\n${formatDbDateWithDay(userAppt.date)} at ${userAppt.time}\n\nPlease choose a new date:\n \n\nNote: Please enter the word 'EXIT' to exit.` +
         dateOptions
           .map((d, i) => `${String(i + 1)}. ${d} (${dayOfWeekLabel(d)})`)
           .join("\n");
@@ -248,7 +249,7 @@ async function handleMainMenu(
     } else {
       await sendWhatsAppText({
         to: userPhone,
-        body: "No booking found. book to create a new appointment. \n\nSend a message to view the main menu.",
+        body: "No appointment found. Please book a new appointment. \n\nSend a message to view the main menu.",
       });
     }
     return;
@@ -262,7 +263,7 @@ async function handleMainMenu(
       console.error("getAppointmentByUserPhone error:", err);
       await sendWhatsAppText({
         to: userPhone,
-        body: "Sorry, we couldn't check your appointment right now. Please try again later.",
+        body: "Sorry, we couldn't check your appointment right now. Please try again later.\n\n Send a message to view the main menu.",
       });
       return;
     }
@@ -284,7 +285,7 @@ async function handleMainMenu(
     } else {
       await sendWhatsAppText({
         to: userPhone,
-        body: "No appointment found to cancel.\n\n Send a message to view the main menu.",
+        body: "No appointment found to cancel. \n\nSend a message to view the main menu.",
       });
     }
     return;
@@ -328,7 +329,7 @@ async function handleAwaitingDate(
   if (Number.isNaN(index) || index < 1 || index > 7) {
     await sendWhatsAppText({
       to: userPhone,
-      body: "Invalid choice. Please select 1-7. \n NOTE:Please enter the word 'EXIT' to exit.",
+      body: "Invalid choice. Please select 1-7. \n\nNote: Please enter the word 'EXIT' to exit.",
     });
     return;
   }
@@ -358,7 +359,7 @@ async function handleAwaitingDate(
   if (!pickedDate) {
     await sendWhatsAppText({
       to: userPhone,
-      body: "Invalid choice. Please select a valid date number.\n NOTE:Please enter the word 'EXIT' to exit.",
+      body: "Invalid choice. Please select a valid date number.\n\nNote: Please enter the word 'EXIT' to exit.",
     });
     return;
   }
@@ -388,7 +389,7 @@ async function handleAwaitingDate(
     if (slots.length === 0) {
       await sendWhatsAppText({
         to: userPhone,
-        body: `Sorry, no slots available on ${pickedDate}. Please choose another date.\n "NOTE:Please enter the word 'EXIT' to exit."`,
+        body: `Sorry, no slots available on ${pickedDate}. Please choose another date.\n\nNote: Please enter the word 'EXIT' to exit.`,
       });
       session.state = "awaitingDate";
       try {
@@ -417,7 +418,7 @@ async function handleAwaitingDate(
     const slotsMsg =
       `Available slots for ${pickedDate} (${day}):\n\n` +
       slots.map((s, i) => `${String(i + 1)}. ${s}`).join("\n") +
-      "\n\nReply with the slot number.\n\nNOTE: Please enter the word 'EXIT' to exit.";
+      "\n\nReply with the slot option number.\n\nNote: Please enter the word 'EXIT' to exit.";
     await sendWhatsAppText({ to: userPhone, body: slotsMsg });
   } else {
     session.state = "awaitingSession";
@@ -434,7 +435,7 @@ async function handleAwaitingDate(
     }
     await sendWhatsAppText({
       to: userPhone,
-      body: "Please choose your preference:\n1. Morning\n2. Evening \n\nNOTE: Please enter the word 'EXIT' to exit.",
+      body: "Please choose your preference:\n1. Morning\n2. Evening \n\nNote: Please enter the word 'EXIT' to exit.",
     });
   }
 }
@@ -447,14 +448,14 @@ async function handleAwaitingSession(
   if (message !== "1" && message !== "2") {
     await sendWhatsAppText({
       to: userPhone,
-      body: "Invalid choice. Reply 1 for Morning or 2 for Evening.\n NOTE:Please enter the word 'EXIT' to exit.",
+      body: "Invalid choice. Reply 1 for Morning or 2 for Evening.\n\nNote: Please enter the word 'EXIT' to exit.",
     });
     return;
   }
   if (!session.selectedDate) {
     await sendWhatsAppText({
       to: userPhone,
-      body: "No date selected. Please choose a date first. \n NOTE:Please enter the word 'EXIT' to exit.",
+      body: "No date selected. Please choose a date first. \n\nNote: Please enter the word 'EXIT' to exit.",
     });
     session.state = "awaitingDate";
     try {
@@ -482,7 +483,7 @@ async function handleAwaitingSession(
   if (slots.length === 0) {
     await sendWhatsAppText({
       to: userPhone,
-      body: `Sorry, no ${pref} slots available on ${session.selectedDate ?? ""}. Please choose another date.\n NOTE:Please enter the word 'EXIT' to exit.`,
+      body: `Sorry, no ${pref} slots available on ${session.selectedDate ?? ""}. Please choose another date.\n\nNote: Please enter the word 'EXIT' to exit.`,
     });
     session.state = "awaitingDate";
     try {
@@ -513,7 +514,7 @@ async function handleAwaitingSession(
       session.selectedDate ?? ""
     )}):\n\n` +
     slots.map((s, i) => `${String(i + 1)}. ${s}`).join("\n") +
-    "\n\nReply with the slot number.\n\nNOTE: Please enter the word 'EXIT' to exit.";
+    "\n\nReply with the slot number.\n\nNote: Please enter the word 'EXIT' to exit.";
   await sendWhatsAppText({ to: userPhone, body: slotsMsg });
 }
 
@@ -526,7 +527,7 @@ async function handleAwaitingTime(
   if (!session.selectedDate) {
     await sendWhatsAppText({
       to: userPhone,
-      body: "No date selected. Please choose a date first.\n\nNOTE: Please enter the word 'EXIT' to exit.",
+      body: "No date selected. Please choose a date first.\n\nNote: Please enter the word 'EXIT' to exit.",
     });
     session.state = "awaitingDate";
     try {
@@ -562,7 +563,7 @@ async function handleAwaitingTime(
   if (Number.isNaN(index) || index < 1 || index > slots.length) {
     await sendWhatsAppText({
       to: userPhone,
-      body: "Invalid choice. Please select a valid slot number.\n\nNOTE: Please enter the word 'EXIT' to exit.",
+      body: "Invalid choice. Please select a valid slot number.\n\nNote: Please enter the word 'EXIT' to exit.",
     });
     return;
   }
@@ -608,7 +609,7 @@ async function handleAwaitingConfirm(
       console.error("createAppointment error:", err);
       await sendWhatsAppText({
         to: userPhone,
-        body: "Sorry, we couldn't confirm your booking due to a system error. Please try again.",
+        body: "Sorry, we couldn't confirm your booking due to a system error. Please try again.\n\nSend a message to view the main menu.",
       });
       try {
         await deleteSession(userPhone);
@@ -621,7 +622,7 @@ async function handleAwaitingConfirm(
       to: userPhone,
       body: `✅ Appointment confirmed for ${formatDisplayDateWithDay(
         session.selectedDate ?? ""
-      )} at ${session.selectedTime ?? ""}. We will send a reminder a day before your appointment.\n\n Send a message to view the main menu.`,
+      )} at ${session.selectedTime ?? ""}.\nWe will send a reminder a day before your appointment.\n\n Send a message to view the main menu.`,
     });
     try {
       if (adminPhoneNumber) {
@@ -682,7 +683,7 @@ async function handleAwaitingConfirm(
   }
   await sendWhatsAppText({
     to: userPhone,
-    body: "Please reply with Yes or No to confirm your booking.\n\nType 'EXIT' to exit the booking process.",
+    body: "Please reply with Yes or No to confirm your booking.\n\nNote: Please enter the word 'EXIT' to exit.",
   });
 }
 
@@ -695,7 +696,7 @@ async function handleRescheduleNewDate(
   if (Number.isNaN(index) || index < 1 || index > 7) {
     await sendWhatsAppText({
       to: userPhone,
-      body: "Invalid choice. Please select 1-7.\n\nNOTE: Please enter the word 'EXIT' to exit.",
+      body: "Invalid choice. Please select 1-7.\n\nNote: Please enter the word 'EXIT' to exit.",
     });
     return;
   }
@@ -704,7 +705,7 @@ async function handleRescheduleNewDate(
   if (!dateOptions) {
     await sendWhatsAppText({
       to: userPhone,
-      body: "Session expired. Please start again by Sending a message to view the main menu.",
+      body: "Session expired. Please start again by sending a message to view the main menu.",
     });
     try {
       await deleteSession(userPhone);
@@ -718,7 +719,7 @@ async function handleRescheduleNewDate(
   if (!pickedDate) {
     await sendWhatsAppText({
       to: userPhone,
-      body: "Invalid choice. Please select a valid date number. \n\nNOTE: Please enter the word 'EXIT' to exit.",
+      body: "Invalid choice. Please select a valid date option. \n\nNote: Please enter the word 'EXIT' to exit.",
     });
     return;
   }
@@ -742,14 +743,14 @@ async function handleRescheduleNewDate(
       console.error("getAvailableSlots error:", err);
       await sendWhatsAppText({
         to: userPhone,
-        body: "Sorry, we couldn't load available slots. Please try again later.",
+        body: "Sorry, we couldn't load available slots. Please try again later.\n\nSend a message to view the main menu.",
       });
       return;
     }
     if (slots.length === 0) {
       await sendWhatsAppText({
         to: userPhone,
-        body: `Sorry, no slots available on ${pickedDate}. Please choose another date.\n\nNOTE: Please enter the word 'EXIT' to exit.`,
+        body: `Sorry, no slots available on ${pickedDate}. Please choose another date.\n\nNote: Please enter the word 'EXIT' to exit.`,
       });
       session.state = "rescheduleNewDate";
       try {
@@ -772,7 +773,7 @@ async function handleRescheduleNewDate(
     const slotsMsg =
       `Available slots for ${pickedDate} (${day}):\n\n` +
       slots.map((s, i) => `${String(i + 1)}. ${s}`).join("\n") +
-      "\n\nReply with the slot number.\n\nNOTE: Please enter the word 'EXIT' to exit.";
+      "\n\nReply with the slot option number.\n\nNote: Please enter the word 'EXIT' to exit.";
     await sendWhatsAppText({ to: userPhone, body: slotsMsg });
   } else {
     session.state = "rescheduleSession";
@@ -785,7 +786,7 @@ async function handleRescheduleNewDate(
     }
     await sendWhatsAppText({
       to: userPhone,
-      body: "Please choose your preference:\n 1. Morning\n 2. Evening \n\nNOTE: Please enter the word 'EXIT' to exit.",
+      body: "Please choose your preference:\n 1. Morning\n 2. Evening \n\nNote: Please enter the word 'EXIT' to exit.",
     });
   }
 }
@@ -798,7 +799,7 @@ async function handleRescheduleSession(
   if (message !== "1" && message !== "2") {
     await sendWhatsAppText({
       to: userPhone,
-      body: "Invalid choice. Reply 1 for Morning or 2 for Evening. \n\nNOTE: Please enter the word 'EXIT' to exit.",
+      body: "Invalid choice. Reply 1 for Morning or 2 for Evening. \n\nNote: Please enter the word 'EXIT' to exit.",
     });
     return;
   }
@@ -810,14 +811,14 @@ async function handleRescheduleSession(
     console.error("getAvailableSlots error:", err);
     await sendWhatsAppText({
       to: userPhone,
-      body: "Sorry, we couldn't load available slots. Please try again later.",
+      body: "Sorry, we couldn't load available slots. Please try again later.\n\nSend a message to view the main menu.",
     });
     return;
   }
   if (slots.length === 0) {
     await sendWhatsAppText({
       to: userPhone,
-      body: `Sorry, no ${pref} slots available on ${session.selectedDate ?? ""}. Please choose another date.\n\nNOTE: Please enter the word 'EXIT' to exit.`,
+      body: `Sorry, no ${pref} slots available on ${session.selectedDate ?? ""}. \nPlease choose another date.\n\nNote: Please enter the word 'EXIT' to exit.`,
     });
     session.state = "rescheduleNewDate";
     try {
@@ -846,7 +847,7 @@ async function handleRescheduleSession(
       session.selectedDate ?? ""
     )}):\n\n` +
     slots.map((s, i) => `${String(i + 1)}. ${s}`).join("\n") +
-    "\n\nReply with the slot number.\n\nNOTE: Please enter the word 'EXIT' to exit.";
+    "\n\nReply with the slot option number.\n\nNote: Please enter the word 'EXIT' to exit.";
   await sendWhatsAppText({ to: userPhone, body: slotsMsg });
 }
 
@@ -860,7 +861,7 @@ async function handleRescheduleNewTime(
     await sendWhatsAppText({
       to: userPhone,
 
-      body: "No date selected. Please choose a date first.\n\nNOTE: Please enter the word 'EXIT' to exit.",
+      body: "No date selected. Please choose a date first.\n\nNote: Please enter the word 'EXIT' to exit.",
     });
     session.state = "rescheduleNewDate";
     try {
@@ -887,7 +888,7 @@ async function handleRescheduleNewTime(
       await sendWhatsAppText({
         to: userPhone,
 
-        body: "Sorry, we couldn't load available slots. Please try again later.",
+        body: "Sorry, we couldn't load available slots. Please try again later.\n\nSend a message to view the main menu.",
       });
       return;
     }
@@ -896,7 +897,7 @@ async function handleRescheduleNewTime(
     await sendWhatsAppText({
       to: userPhone,
 
-      body: "Invalid choice. Please select a valid slot number.\n\nNOTE: Please enter the word 'EXIT' to exit.",
+      body: "Invalid choice. Please select a valid slot number.\n\nNote: Please enter the word 'EXIT' to exit.",
     });
     return;
   }
@@ -962,7 +963,7 @@ async function handleRescheduleCheck(
       await sendWhatsAppText({
         to: userPhone,
 
-        body: "Sorry, we couldn't reschedule your appointment due to a system error. Please try again.",
+        body: "Sorry, we couldn't reschedule your appointment due to a system error. Please try again.\n\nSend a message to view the main menu.",
       });
       try {
         await deleteSession(userPhone);
@@ -974,7 +975,7 @@ async function handleRescheduleCheck(
     await sendWhatsAppText({
       to: userPhone,
 
-      body: `✅ Appointment successfully rescheduled to ${formatDisplayDateWithDay(session.selectedDate)} at ${session.selectedTime}.\n\n Send a message to view the main menu.`,
+      body: `✅ Appointment successfully rescheduled to: \n\nNew Date: ${formatDisplayDateWithDay(session.selectedDate)} \nNew Time: ${session.selectedTime}\n\n Send a message to view the main menu.`,
     });
 
     if (adminPhoneNumber && existingAppt) {
@@ -1130,7 +1131,7 @@ async function handleConfirmCancel(
     console.error("cancel appointment error:", err);
     await sendWhatsAppText({
       to: userPhone,
-      body: "Sorry, we couldn't cancel your appointment right now. Please try again later.",
+      body: "Sorry, we couldn't cancel your appointment right now. Please try again later.\n\nSend a message to view the main menu.",
     });
   } finally {
     try {
@@ -1239,7 +1240,7 @@ async function showAppointments(userPhone: string): Promise<void> {
     console.error("getAppointmentByUserPhone error:", err);
     await sendWhatsAppText({
       to: userPhone,
-      body: "Sorry, we couldn't retrieve your appointment right now. Please try again later.",
+      body: "Sorry, we couldn't retrieve your appointment right now. Please try again later.\n\nSend a message to view the main menu.",
     });
     return;
   }
@@ -1247,7 +1248,7 @@ async function showAppointments(userPhone: string): Promise<void> {
   if (list.length === 0) {
     await sendWhatsAppText({
       to: userPhone,
-      body: "No appointments found.Book to schedule one. \n\nSend a message to view the main menu.",
+      body: "No appointments found. Please book a new appointment. \n\nSend a message to view the main menu.",
     });
     return;
   }

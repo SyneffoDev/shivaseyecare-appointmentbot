@@ -1,5 +1,5 @@
 import { Elysia } from "elysia";
-import { Cron } from "croner";
+import { cron } from "@elysiajs/cron";
 
 import { handleUserReply } from "./flows/appointmentFlow";
 import { handleAdminReply } from "./flows/adminFlow";
@@ -17,49 +17,37 @@ import { sendWhatsAppText } from "./utils/whatsappAPI";
 
 const port = parseInt(process.env.PORT || "3000");
 
-const app = new Elysia();
-
-new Cron(
-  "*/15 * * * *",
-  {
-    timezone: "Asia/Kolkata",
-  },
-  async () => {
-    await deleteExpiredSessions();
-  }
-);
-
-new Cron(
-  "0 7 * * *",
-  {
-    timezone: "Asia/Kolkata",
-  },
-  async () => {
-    await sendReminder(dayjs().format("YYYY-MM-DD"));
-  }
-);
-
-// For testing
-// new Cron(
-//   "50 10 * * *",
-//   {
-//     timezone: "Asia/Kolkata",
-//   },
-//   async () => {
-//     console.log("Sending reminder for", dayjs().format("YYYY-MM-DD"));
-//     await sendReminder(dayjs().format("YYYY-MM-DD"));
-//   }
-// );
-
-new Cron(
-  "0 20 * * *",
-  {
-    timezone: "Asia/Kolkata",
-  },
-  async () => {
-    await sendReminder(dayjs().add(1, "day").format("YYYY-MM-DD"));
-  }
-);
+const app = new Elysia()
+  .use(
+    cron({
+      name: "deleteExpiredSessions",
+      pattern: "*/15 * * * *",
+      timezone: "Asia/Kolkata",
+      run: async () => {
+        await deleteExpiredSessions();
+      },
+    })
+  )
+  .use(
+    cron({
+      name: "sendReminderMorning",
+      pattern: "0 7 * * *",
+      timezone: "Asia/Kolkata",
+      run: async () => {
+        await sendReminder(dayjs().format("YYYY-MM-DD"));
+      },
+    })
+  )
+  .use(
+    cron({
+      name: "sendReminderEvening",
+      pattern: "* 20 * * *",
+      timezone: "Asia/Kolkata",
+      run: async () => {
+        await sendReminder(dayjs().add(1, "day").format("YYYY-MM-DD"));
+      },
+    })
+  );
 
 app.get("/health", () => {
   console.log("Health check");

@@ -14,12 +14,10 @@
   },
   "dependencies": {
     "@elysiajs/cron": "^1.4.1",
-    "croner": "^9.1.0",
     "dayjs": "^1.11.18",
     "dotenv": "^17.2.2",
     "drizzle-orm": "^0.44.5",
     "elysia": "^1.4.6",
-    "hono": "^4.9.5",
     "pg": "^8.16.3"
   },
   "devDependencies": {

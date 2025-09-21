@@ -41,7 +41,7 @@ const app = new Elysia()
   .use(
     cron({
       name: "sendReminderEvening",
-      pattern: "* 20 * * *",
+      pattern: "0 20 * * *",
       timezone: "Asia/Kolkata",
       run: async () => {
         await sendReminder(dayjs().add(1, "day").format("YYYY-MM-DD"));

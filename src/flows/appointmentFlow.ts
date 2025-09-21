@@ -43,6 +43,7 @@ async function getAvailableSlots(
   const day = dayOfWeekLabel(date);
   let baseSlots: string[];
 
+  // Sunday = only MorningSlots
   if (day === "Sunday") {
     baseSlots = MorningSlots;
   } else {
@@ -67,46 +68,40 @@ async function getAvailableSlots(
     normalizeTimeLabel(a.time as unknown as string)
   );
 
+  // ---- check if selected date is today ----
   const parsedSelectedDate = dayjs(date, "DD/MM/YYYY", true);
   const isToday = parsedSelectedDate.isValid()
     ? parsedSelectedDate.isSame(dayjs(), "day")
     : false;
 
-  const dateTimeFormats = [
-    "DD/MM/YYYY h:mm A",
-    "DD/MM/YYYY hh:mm A",
-    "DD/MM/YYYY H:mm",
-    "DD/MM/YYYY HH:mm",
-  ];
-
   if (isToday) {
     const now = dayjs();
+
+    // filter only slots after "now"
     const futureSlots = baseSlots.filter((slot) => {
-      const combined = `${date} ${slot}`;
-
-      let slotTime = dayjs(combined, dateTimeFormats, true);
-
-      if (!slotTime.isValid()) {
-        slotTime = dayjs(combined, dateTimeFormats, false);
-      }
-
-      if (!slotTime.isValid()) {
-        console.warn(
-          "[getAvailableSlots] could not parse slot time:",
-          combined,
-          "— dropping this slot"
-        );
+      // parse time only (hh:mm A)
+      const timePart = dayjs(slot, ["h:mm A"], true);
+      if (!timePart.isValid()) {
+        console.warn("[getAvailableSlots] Invalid time parse:", slot);
         return false;
       }
 
-      return slotTime.isAfter(now);
+      // combine the exact date + slot time
+      const slotDateTime = parsedSelectedDate
+        .hour(timePart.hour())
+        .minute(timePart.minute())
+        .second(0);
+
+      return slotDateTime.isAfter(now);
     });
 
+    // remove booked slots and return
     return futureSlots.filter(
       (slot) => !bookedSlots.includes(normalizeTimeLabel(slot))
     );
   }
 
+  // ---- for future days: show all slots except booked ones ----
   return baseSlots.filter(
     (slot) => !bookedSlots.includes(normalizeTimeLabel(slot))
   );

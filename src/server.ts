@@ -13,6 +13,7 @@ import type {
   WebhookMessage,
 } from "./utils/types";
 import { deleteExpiredSessions } from "./db/sessionHelpers";
+import { sendWhatsAppText } from "./utils/whatsappAPI";
 
 const port = parseInt(process.env.PORT || "3000");
 
@@ -126,15 +127,26 @@ app.post("/webhook", async (c) => {
           const text =
             type === "text" && message.text ? message.text.body : undefined;
           console.log("[WhatsApp] from=%s type=%s text=%s", from, type, text);
-
-          if (from && text && id && from === process.env.ADMIN_PHONE_NUMBER) {
-            handleAdminReply(text, id).catch((err: unknown) => {
-              console.error("handleAdminReply error:", err);
-            });
-          } else if (from && text && id) {
-            handleUserReply(from, text, id).catch((err: unknown) => {
-              console.error("handleUserReply error:", err);
-            });
+          try {
+            if (from && text && id && from === process.env.ADMIN_PHONE_NUMBER) {
+              handleAdminReply(text, id).catch((err: unknown) => {
+                console.error("handleAdminReply error:", err);
+              });
+            } else if (from && text && id) {
+              handleUserReply(from, text, id).catch((err: unknown) => {
+                console.error("handleUserReply error:", err);
+              });
+            }
+          } catch (err) {
+            console.error("Webhook processing error:", err);
+            if (from) {
+              sendWhatsAppText({
+                to: from,
+                body: "❌ Something went wrong. Please try again later.",
+              }).catch((err: unknown) => {
+                console.error("sendWhatsAppText error:", err);
+              });
+            }
           }
         }
       }

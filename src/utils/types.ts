@@ -28,6 +28,7 @@ export interface WebhookMessage {
   id?: string;
   text?: { body?: string };
   button?: { payload?: string; text?: string };
+  image?: { id?: string };
 }
 
 export interface WebhookChangeValue {

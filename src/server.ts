@@ -87,7 +87,7 @@ app.post("/webhook", (c) => {
   try {
     if ((query.token as string | undefined) !== process.env.URL_TOKEN) {
       console.log("Unknown request");
-      return new Response(null, { status: 400 });
+      return new Response("Unknown request", { status: 400 });
     }
 
     const webhookBody: WebhookBody | undefined = body as

@@ -110,12 +110,19 @@ app.post("/webhook", ({ query, body }) => {
         const messages: WebhookMessage[] = Array.isArray(value.messages)
           ? value.messages
           : [];
+        console.dir(messages, { depth: Infinity });
+        console.log("--------------------------------");
+        console.dir(value, { depth: Infinity });
+        console.log("--------------------------------");
         for (const message of messages) {
           const from = message.from;
           const type = message.type;
           const id = message.id;
           const text =
-            type === "text" && message.text ? message.text.body : undefined;
+            (type === "text" && message.text ? message.text.body : undefined) ||
+            (type === "button" && message.button
+              ? message.button.text
+              : undefined);
           console.log("[WhatsApp] from=%s type=%s text=%s", from, type, text);
           try {
             if (from && text && id && from === process.env.ADMIN_PHONE_NUMBER) {

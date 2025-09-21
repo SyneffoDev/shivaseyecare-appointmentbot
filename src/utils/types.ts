@@ -27,6 +27,7 @@ export interface WebhookMessage {
   type?: string;
   id?: string;
   text?: { body?: string };
+  button?: { payload?: string; text?: string };
 }
 
 export interface WebhookChangeValue {

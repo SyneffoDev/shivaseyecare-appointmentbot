@@ -240,10 +240,11 @@ async function handleMainMenu(
       }
 
       const dateMsg =
-        `Your current appointment:\n${formatDbDateWithDay(userAppt.date)} at ${userAppt.time}\n\nPlease choose a new date:\n \n\nNote: Please enter the word 'EXIT' to exit.` +
+        `Your current appointment:\n${formatDbDateWithDay(userAppt.date)} at ${userAppt.time}\n\nPlease choose a new date:\n ` +
         dateOptions
           .map((d, i) => `${String(i + 1)}. ${d} (${dayOfWeekLabel(d)})`)
-          .join("\n");
+          .join("\n") +
+        "\n\nNote: Please enter the word 'EXIT' to exit.";
 
       await sendWhatsAppText({ to: userPhone, body: dateMsg });
     } else {
@@ -1157,6 +1158,25 @@ export async function handleUserReply(
 
   if (message === "exit") {
     await handleExit(userPhone);
+    return;
+  }
+
+  // Global button/text shortcuts: handle "RESCHEDULE" or "CANCEL" from any state
+  if (message === "reschedule" || message === "cancel") {
+    const session: AppointmentSession = existingSession ?? {
+      state: "mainMenu",
+      lastInteractionUnixMs: now,
+    };
+    if (!existingSession) {
+      await setSession(userPhone, session);
+    } else {
+      try {
+        await updateSession(userPhone, { lastInteractionUnixMs: now });
+      } catch (err) {
+        console.error("updateSession error:", err);
+      }
+    }
+    await handleMainMenu(session, userPhone, message);
     return;
   }
 

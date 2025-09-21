@@ -51,14 +51,14 @@ const app = new Elysia()
 
 app.get("/health", () => {
   console.log("Health check");
-  return "OK";
+  return new Response("OK", { status: 200 });
 });
 
-app.get("/webhook", ({ query }) => {
-  const mode = query["hub.mode"] as string | undefined;
-  const token = query["hub.verify_token"] as string | undefined;
-  const challenge = query["hub.challenge"] as string | undefined;
-  const urlToken = query.token as string | undefined;
+app.get("/webhook", (c) => {
+  const mode = c.query["hub.mode"] as string | undefined;
+  const token = c.query["hub.verify_token"] as string | undefined;
+  const challenge = c.query["hub.challenge"] as string | undefined;
+  const urlToken = c.query.token as string | undefined;
 
   if (urlToken !== process.env.URL_TOKEN) {
     return new Response(null, { status: 400 });
@@ -81,7 +81,9 @@ app.get("/webhook", ({ query }) => {
   return new Response(null, { status: 400 });
 });
 
-app.post("/webhook", ({ query, body }) => {
+app.post("/webhook", (c) => {
+  const query = c.query;
+  const body = c.body;
   try {
     if ((query.token as string | undefined) !== process.env.URL_TOKEN) {
       console.log("Unknown request");
@@ -110,10 +112,6 @@ app.post("/webhook", ({ query, body }) => {
         const messages: WebhookMessage[] = Array.isArray(value.messages)
           ? value.messages
           : [];
-        console.dir(messages, { depth: Infinity });
-        console.log("--------------------------------");
-        console.dir(value, { depth: Infinity });
-        console.log("--------------------------------");
         for (const message of messages) {
           const from = message.from;
           const type = message.type;

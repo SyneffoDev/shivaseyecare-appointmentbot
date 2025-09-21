@@ -9,7 +9,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: ${{ false && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
 
     permissions:
       contents: read
@@ -36,7 +36,7 @@ jobs:
             set -e
             
             # Navigate to project directory
-            cd ${{ secrets.DEPLOY_PATH || '/var/www/your-app' }}
+            cd ${{ secrets.DEPLOY_PATH }}
             
             # Pull latest changes
             git pull origin main
@@ -53,7 +53,8 @@ jobs:
           DATABASE_URL=${{ secrets.DATABASE_URL }}
           EOL    
             bun ci
-            pm2 restart your-app-name || pm2 start ecosystem.config.js
+            bun run build
+            pm2 restart ${{ secrets.PM2_APP_NAME }}
             echo "Deployment completed successfully!"
           EOF
 

@@ -57,3 +57,9 @@ jobs:
               issue_number: context.payload.pull_request.number,
               body
             });
+
+  deploy:
+    needs: lint-and-format
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit

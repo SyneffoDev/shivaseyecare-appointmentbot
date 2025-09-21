@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Elysia } from "elysia";
 import { Cron } from "croner";
 
 import { handleUserReply } from "./flows/appointmentFlow";
@@ -17,7 +17,7 @@ import { sendWhatsAppText } from "./utils/whatsappAPI";
 
 const port = parseInt(process.env.PORT || "3000");
 
-const app = new Hono();
+const app = new Elysia();
 
 new Cron(
   "*/15 * * * *",
@@ -61,53 +61,55 @@ new Cron(
   }
 );
 
-app.get("/health", (c) => {
+app.get("/health", () => {
   console.log("Health check");
-  return c.text("OK");
+  return "OK";
 });
 
-app.get("/webhook", (c) => {
-  const mode = c.req.query("hub.mode");
-  const token = c.req.query("hub.verify_token");
-  const challenge = c.req.query("hub.challenge");
-  const urlToken = c.req.query("token");
+app.get("/webhook", ({ query }) => {
+  const mode = query["hub.mode"] as string | undefined;
+  const token = query["hub.verify_token"] as string | undefined;
+  const challenge = query["hub.challenge"] as string | undefined;
+  const urlToken = query.token as string | undefined;
 
   if (urlToken !== process.env.URL_TOKEN) {
-    return c.body(null, 400);
+    return new Response(null, { status: 400 });
   }
 
   const verifyToken = process.env.WEBHOOK_VERIFY_TOKEN;
 
   if (mode === "subscribe" && token && challenge) {
     if (token === verifyToken) {
-      return c.text(challenge, 200);
+      return challenge;
     }
     console.warn(
       "[VERIFY] Token mismatch. Received len=%s, expected len=%s",
       token.length,
       verifyToken?.length ?? 0
     );
-    return c.body(null, 403);
+    return new Response(null, { status: 403 });
   }
 
-  return c.body(null, 400);
+  return new Response(null, { status: 400 });
 });
 
-app.post("/webhook", async (c) => {
+app.post("/webhook", ({ query, body }) => {
   try {
-    if (c.req.query("token") !== process.env.URL_TOKEN) {
+    if ((query.token as string | undefined) !== process.env.URL_TOKEN) {
       console.log("Unknown request");
-      return c.body(null, 400);
+      return new Response(null, { status: 400 });
     }
 
-    const body: WebhookBody | undefined = await c.req.json();
+    const webhookBody: WebhookBody | undefined = body as
+      | WebhookBody
+      | undefined;
 
-    if (!body || body.object !== "whatsapp_business_account") {
-      return c.body(null, 400);
+    if (!webhookBody || webhookBody.object !== "whatsapp_business_account") {
+      return new Response(null, { status: 400 });
     }
 
-    const entryList: WebhookEntry[] = Array.isArray(body.entry)
-      ? body.entry
+    const entryList: WebhookEntry[] = Array.isArray(webhookBody.entry)
+      ? webhookBody.entry
       : [];
     for (const entry of entryList) {
       const changeList: WebhookChange[] | undefined[] = Array.isArray(
@@ -152,16 +154,15 @@ app.post("/webhook", async (c) => {
       }
     }
 
-    return c.text("EVENT_RECEIVED", 200);
+    return new Response("EVENT_RECEIVED", { status: 200 });
   } catch (error) {
     console.error("Webhook processing error:", error);
-    return c.body(null, 500);
+    return new Response(null, { status: 500 });
   }
 });
 
-const server = Bun.serve({
-  port: port,
-  fetch: app.fetch,
-});
+app.listen(port);
 
-console.log(`Server started on http://localhost:${String(server.port)}`);
+console.log(
+  `Server started on http://localhost:${String(app.server?.port ?? port)}`
+);

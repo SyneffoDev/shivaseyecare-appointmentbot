@@ -120,7 +120,7 @@ const mainMenuMessage =
 const contactDetails =
   "🏥 Shivas Eye Care Contact:\n" +
   "📞 Phone: +919840088522 or +919840174184\n" +
-  "📍 Address:134/1818, 13th Main Rd, Thiruvalluvar Colony, Anna Nagar, Chennai, Tamil Nadu 600040\n\n" +
+  "📍 Address: 134/1818, 13th Main Rd, Thiruvalluvar Colony, Anna Nagar, Chennai, Tamil Nadu 600040\n\n" +
   "📌 Maps: https://maps.app.goo.gl/BpiRvFM1e9ZukTvW8";
 
 async function handleExit(userPhone: string): Promise<void> {

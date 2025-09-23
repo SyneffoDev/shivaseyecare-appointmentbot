@@ -115,7 +115,7 @@ const mainMenuMessage =
   "2. Reschedule Appointment \n" +
   "3. Cancel Appointment \n" +
   "4. View Appointment Details \n" +
-  "5. Contact test Support ";
+  "5. Contact Support ";
 
 const contactDetails =
   "🏥 Shivas Eye Care Contact:\n" +

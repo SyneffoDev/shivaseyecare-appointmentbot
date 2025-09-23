@@ -592,6 +592,28 @@ async function handleAwaitingConfirm(
 ): Promise<void> {
   if (message === "yes") {
     try {
+      // Re-validate that the chosen time is still available at booking time
+      const available = await getAvailableSlots(session.selectedDate ?? "");
+      const wanted = normalizeTimeLabel(session.selectedTime ?? "");
+      const isFree = available
+        .map((s) => normalizeTimeLabel(s))
+        .includes(wanted);
+      if (!isFree) {
+        await sendWhatsAppText({
+          to: userPhone,
+          body: "Sorry, that slot was just booked by someone else. Please choose another time.",
+        });
+        try {
+          await updateSession(userPhone, {
+            state: "awaitingTime",
+            selectedTime: undefined,
+          });
+        } catch (err) {
+          console.error("updateSession error:", err);
+        }
+        return;
+      }
+
       await createAppointment({
         userPhone,
         serviceId: "default",
@@ -668,7 +690,7 @@ async function handleAwaitingConfirm(
   } else if (message === "no") {
     await sendWhatsAppText({
       to: userPhone,
-      body: "❌ Booking cancelled . \n\nSend a message to view the main menu.",
+      body: "❌ Booking cancelled.\n\nSend a message to view the main menu.",
     });
     try {
       await deleteSession(userPhone);
@@ -759,9 +781,13 @@ async function handleRescheduleNewDate(
       return;
     }
     session.state = "rescheduleNewTime";
+    session.slotPreference = "morning";
+    session.slotOptions = slots;
     try {
       await updateSession(userPhone, {
         state: "rescheduleNewTime",
+        slotPreference: "morning",
+        slotOptions: slots,
       });
     } catch (err) {
       console.error("updateSession error:", err);
@@ -1242,6 +1268,14 @@ export async function handleUserReply(
     await handleConfirmCancel(session, userPhone, message);
     return;
   }
+
+  // Fallback: unknown state → reset to main menu
+  try {
+    await updateSession(userPhone, { state: "mainMenu" });
+  } catch (err) {
+    console.error("updateSession error:", err);
+  }
+  await sendWhatsAppText({ to: userPhone, body: mainMenuMessage });
 }
 
 async function showAppointments(userPhone: string): Promise<void> {

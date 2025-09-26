@@ -1,6 +1,11 @@
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 dayjs.extend(customParseFormat);
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
 import {
   dayOfWeekLabel,
   toIsoDateFromDisplay,
@@ -33,78 +38,120 @@ import { MorningSlots, EveningSlots } from "../utils/appointmentData";
 import { adminPhoneNumber } from "../utils/whatsappAPI";
 
 function normalizeTimeLabel(input: string): string {
-  return input.replace(/\s+/g, " ").trim().toUpperCase();
+  // This new version removes ALL whitespace, making the comparison rock-solid.
+  // e.g., "10:30 AM", "10:30am", and " 10:30 am " all become "10:30AM".
+  return input.replace(/\s+/g, "").toUpperCase();
 }
 
 async function getAvailableSlots(
   date: string,
   preference?: "morning" | "evening"
 ): Promise<string[]> {
+  const parseSlotToDayjs = (slotStr: string): dayjs.Dayjs | null => {
+    if (!slotStr || typeof slotStr !== "string") return null;
+    const s = slotStr.trim();
+
+    const formats = ["h:mm A", "hh:mm A", "h A", "hh A", "H:mm", "HH:mm", "H"];
+    let parsed = dayjs(s, formats, true);
+    if (!parsed.isValid()) {
+      const withMinutes = s.replace(/\b(\d{1,2})\s*(AM|PM)\b/i, "$1:00 $2");
+      parsed = dayjs(withMinutes, formats, true);
+    }
+    return parsed.isValid() ? parsed : null;
+  };
+
+  const canonicalFromDateTime = (dt: dayjs.Dayjs) => dt.format("h:mm A");
+
   const day = dayOfWeekLabel(date);
   let baseSlots: string[];
-
-  // Sunday = only MorningSlots
   if (day === "Sunday") {
     baseSlots = MorningSlots;
+  } else if (preference === "morning") {
+    baseSlots = MorningSlots;
+  } else if (preference === "evening") {
+    baseSlots = EveningSlots;
   } else {
-    if (preference === "morning") {
-      baseSlots = MorningSlots;
-    } else if (preference === "evening") {
-      baseSlots = EveningSlots;
-    } else {
-      baseSlots = [...MorningSlots, ...EveningSlots];
-    }
+    baseSlots = [...MorningSlots, ...EveningSlots];
   }
 
-  const isoDate = toIsoDateFromDisplay(date);
-  let appointmentsOnDate: Appointment[];
+  let isoDate: string;
   try {
-    appointmentsOnDate = await getAppointmentsByDate(isoDate);
-  } catch (err) {
-    throw err;
+    isoDate = toIsoDateFromDisplay(date);
+  } catch {
+    const parsedFallback = dayjs(date, "DD/MM/YYYY", true);
+    if (!parsedFallback.isValid()) {
+      console.error("[getAvailableSlots] invalid date input:", date);
+      return [];
+    }
+    isoDate = parsedFallback.format("YYYY-MM-DD");
+  }
+  const parsedSelectedDate = dayjs(isoDate).startOf("day");
+
+  const appointmentsOnDate = await getAppointmentsByDate(isoDate);
+
+  // This simplified logic is correct and reliable.
+  const bookedSet = new Set<string>();
+  for (const a of appointmentsOnDate) {
+    bookedSet.add(normalizeTimeLabel(a.time));
   }
 
-  const bookedSlots = appointmentsOnDate.map((a) =>
-    normalizeTimeLabel(a.time as unknown as string)
-  );
+  const now = dayjs().tz("Asia/Kolkata");
 
-  // ---- check if selected date is today ----
-  const parsedSelectedDate = dayjs(date, "DD/MM/YYYY", true);
-  const isToday = parsedSelectedDate.isValid()
-    ? parsedSelectedDate.isSame(dayjs(), "day")
-    : false;
+  const availableSlots: { label: string; dt: dayjs.Dayjs }[] = [];
 
-  if (isToday) {
-    const now = dayjs();
+  for (const rawSlot of baseSlots) {
+    const parsedSlot = parseSlotToDayjs(rawSlot);
+    if (!parsedSlot) {
+      console.warn("[getAvailableSlots] skipping unparsable slot:", rawSlot);
+      continue;
+    }
 
-    // filter only slots after "now"
-    const futureSlots = baseSlots.filter((slot) => {
-      // parse time only (hh:mm A)
-      const timePart = dayjs(slot, ["h:mm A"], true);
-      if (!timePart.isValid()) {
-        console.warn("[getAvailableSlots] Invalid time parse:", slot);
-        return false;
+    const slotDateTime = parsedSelectedDate
+      .hour(parsedSlot.hour())
+      .minute(parsedSlot.minute())
+      .second(0);
+
+    if (parsedSelectedDate.isSame(now, "day")) {
+      if (!slotDateTime.isAfter(now)) {
+        continue;
       }
+    }
 
-      // combine the exact date + slot time
-      const slotDateTime = parsedSelectedDate
-        .hour(timePart.hour())
-        .minute(timePart.minute())
-        .second(0);
+    const canonical = canonicalFromDateTime(slotDateTime);
+    // This check now uses the more robust normalizeTimeLabel
+    if (bookedSet.has(normalizeTimeLabel(canonical))) {
+      continue;
+    }
 
-      return slotDateTime.isAfter(now);
-    });
-
-    // remove booked slots and return
-    return futureSlots.filter(
-      (slot) => !bookedSlots.includes(normalizeTimeLabel(slot))
-    );
+    availableSlots.push({ label: canonical, dt: slotDateTime });
   }
 
-  // ---- for future days: show all slots except booked ones ----
-  return baseSlots.filter(
-    (slot) => !bookedSlots.includes(normalizeTimeLabel(slot))
-  );
+  availableSlots.sort((a, b) => a.dt.valueOf() - b.dt.valueOf());
+
+  if (availableSlots.length === 0) {
+    return [];
+  }
+
+  return availableSlots.map((s) => s.label);
+}
+
+async function getSessionAvailability(
+  date: string
+): Promise<{ morning: number; evening: number }> {
+  let morningSlots: string[] = [];
+  let eveningSlots: string[] = [];
+
+  try {
+    morningSlots = await getAvailableSlots(date, "morning");
+    eveningSlots = await getAvailableSlots(date, "evening");
+  } catch (err) {
+    console.error("getSessionAvailability error:", err);
+  }
+
+  return {
+    morning: morningSlots.length,
+    evening: eveningSlots.length,
+  };
 }
 
 const mainMenuMessage =
@@ -119,8 +166,8 @@ const mainMenuMessage =
 
 const contactDetails =
   "🏥 Shivas Eye Care Contact:\n" +
-  "📞 Phone: +919840088522 or +919840174184 or +918667302776\n" +
-  "📍 Address:134/1818, 13th Main Rd, Thiruvalluvar Colony, Anna Nagar, Chennai, Tamil Nadu 600040\n\n" +
+  "📞 Phone: +919840088522 or +919840174184\n" +
+  "📍 Address: 134/1818, 13th Main Rd, Thiruvalluvar Colony, Anna Nagar, Chennai, Tamil Nadu 600040\n\n" +
   "📌 Maps: https://maps.app.goo.gl/BpiRvFM1e9ZukTvW8";
 
 async function handleExit(userPhone: string): Promise<void> {
@@ -132,6 +179,51 @@ async function handleExit(userPhone: string): Promise<void> {
     });
   } catch (err) {
     console.error("deleteSession error:", err);
+  }
+}
+
+// Add this new function to your file
+
+async function handleAwaitingMenuKeyword(
+  session: AppointmentSession,
+  userPhone: string,
+  message: string
+): Promise<void> {
+  // 1. Check if the user wants to see the menu
+  if (message === "menu") {
+    session.state = "mainMenu";
+    try {
+      await updateSession(userPhone, { state: "mainMenu" });
+    } catch (err) {
+      console.error("updateSession error:", err);
+    }
+    await sendWhatsAppText({
+      to: userPhone,
+      body: mainMenuMessage,
+    });
+    return;
+  }
+
+  // 2. Check if the user entered a valid main menu option directly
+  const isMainMenuOption =
+    ["1", "2", "3", "4", "5"].includes(message) ||
+    message.includes("book") ||
+    message.includes("reschedule") ||
+    message.includes("cancel") ||
+    message.includes("view") ||
+    message.includes("contact");
+
+  if (isMainMenuOption) {
+    // If they entered a valid option, let the main menu handler process it
+    session.state = "mainMenu";
+    await handleMainMenu(session, userPhone, message);
+  } else {
+    // 3. If the input is still invalid, repeat the prompt
+    await sendWhatsAppText({
+      to: userPhone,
+      body: "Invalid input. Please type 'menu' to see the options.",
+    });
+    // The state remains "awaitingMenuKeyword"
   }
 }
 
@@ -162,7 +254,7 @@ async function handleAwaitName(
     console.error("updateSession error:", err);
   }
   const dateMsg =
-    `Welcome, ${name}! Please choose a date from the next 7 days:\n` +
+    `Welcome, ${name}! Please choose a date from the next 7 days, reply with the slot option number:\n` +
     dateOptions
       .map((d, i) => `${String(i + 1)}. ${d} (${dayOfWeekLabel(d)})`)
       .join("\n");
@@ -235,7 +327,7 @@ async function handleMainMenu(
       }
 
       const dateMsg =
-        `Your current appointment:\n${formatDbDateWithDay(userAppt.date)} at ${userAppt.time}\n\nPlease choose a new date:\n ` +
+        `Your current appointment:\n${formatDbDateWithDay(userAppt.date)} at ${userAppt.time}\n\nPlease choose a new date, reply with the slot option number:\n\n` +
         dateOptions
           .map((d, i) => `${String(i + 1)}. ${d} (${dayOfWeekLabel(d)})`)
           .join("\n") +
@@ -310,9 +402,15 @@ async function handleMainMenu(
     return;
   }
 
+  session.state = "awaitingMenuKeyword";
+  try {
+    await updateSession(userPhone, { state: "awaitingMenuKeyword" });
+  } catch (err) {
+    console.error("updateSession error:", err);
+  }
   await sendWhatsAppText({
     to: userPhone,
-    body: mainMenuMessage,
+    body: "Please choose a valid input and type 'menu' to view the main menu.",
   });
 }
 
@@ -417,6 +515,26 @@ async function handleAwaitingDate(
       "\n\nReply with the slot option number.\n\nNote: Please enter the word 'EXIT' to exit.";
     await sendWhatsAppText({ to: userPhone, body: slotsMsg });
   } else {
+    // 👇 CHANGED SECTION START 👇
+
+    // 1. Get the availability counts first
+    const availability = await getSessionAvailability(pickedDate);
+
+    // 2. Handle the edge case where no slots are available for the whole day
+    if (availability.morning === 0 && availability.evening === 0) {
+      await sendWhatsAppText({
+        to: userPhone,
+        body: `Sorry, no slots are available on ${pickedDate}. Please choose another date from the list.`,
+      });
+      // Keep the user in the same state to let them pick another date
+      session.state = "awaitingDate";
+      await updateSession(userPhone, {
+        state: "awaitingDate",
+      });
+      return;
+    }
+
+    // 3. Update the session state
     session.state = "awaitingSession";
     session.slotPreference = undefined;
     session.slotOptions = undefined;
@@ -429,10 +547,19 @@ async function handleAwaitingDate(
     } catch (err) {
       console.error("updateSession error:", err);
     }
+
+    // 4. Construct and send the new, more informative message
+    const sessionMessage =
+      "Please choose a session. Reply with the option number:\n" +
+      `1. Morning (${String(availability.morning)} slots available)\n` +
+      `2. Evening (${String(availability.evening)} slots available)\n\n` +
+      "Note: Please enter the word 'EXIT' to exit.";
+
     await sendWhatsAppText({
       to: userPhone,
-      body: "Please choose your preference:\n1. Morning\n2. Evening \n\nNote: Please enter the word 'EXIT' to exit.",
+      body: sessionMessage,
     });
+    // 👆 CHANGED SECTION END 👆
   }
 }
 
@@ -592,6 +719,28 @@ async function handleAwaitingConfirm(
 ): Promise<void> {
   if (message === "yes") {
     try {
+      // Re-validate that the chosen time is still available at booking time
+      const available = await getAvailableSlots(session.selectedDate ?? "");
+      const wanted = normalizeTimeLabel(session.selectedTime ?? "");
+      const isFree = available
+        .map((s) => normalizeTimeLabel(s))
+        .includes(wanted);
+      if (!isFree) {
+        await sendWhatsAppText({
+          to: userPhone,
+          body: "Sorry, that slot was just booked by someone else. Please choose another time.",
+        });
+        try {
+          await updateSession(userPhone, {
+            state: "awaitingTime",
+            selectedTime: undefined,
+          });
+        } catch (err) {
+          console.error("updateSession error:", err);
+        }
+        return;
+      }
+
       await createAppointment({
         userPhone,
         serviceId: "default",
@@ -668,7 +817,7 @@ async function handleAwaitingConfirm(
   } else if (message === "no") {
     await sendWhatsAppText({
       to: userPhone,
-      body: "❌ Booking cancelled . \n\nSend a message to view the main menu.",
+      body: "❌ Booking cancelled.\n\nSend a message to view the main menu.",
     });
     try {
       await deleteSession(userPhone);
@@ -759,9 +908,13 @@ async function handleRescheduleNewDate(
       return;
     }
     session.state = "rescheduleNewTime";
+    session.slotPreference = "morning";
+    session.slotOptions = slots;
     try {
       await updateSession(userPhone, {
         state: "rescheduleNewTime",
+        slotPreference: "morning",
+        slotOptions: slots,
       });
     } catch (err) {
       console.error("updateSession error:", err);
@@ -772,6 +925,25 @@ async function handleRescheduleNewDate(
       "\n\nReply with the slot option number.\n\nNote: Please enter the word 'EXIT' to exit.";
     await sendWhatsAppText({ to: userPhone, body: slotsMsg });
   } else {
+    // 👇 CHANGED SECTION START 👇
+
+    // 1. Get the availability counts
+    const availability = await getSessionAvailability(pickedDate);
+
+    // 2. Handle the edge case where no slots are available
+    if (availability.morning === 0 && availability.evening === 0) {
+      await sendWhatsAppText({
+        to: userPhone,
+        body: `Sorry, no slots are available on ${pickedDate}. Please choose another date from the list.`,
+      });
+      session.state = "rescheduleNewDate";
+      await updateSession(userPhone, {
+        state: "rescheduleNewDate",
+      });
+      return;
+    }
+
+    // 3. Update the session state
     session.state = "rescheduleSession";
     try {
       await updateSession(userPhone, {
@@ -780,13 +952,21 @@ async function handleRescheduleNewDate(
     } catch (err) {
       console.error("updateSession error:", err);
     }
+
+    // 4. Construct and send the new, more informative message
+    const sessionMessage =
+      "Please choose a session. Reply with the option number:\n" +
+      `1. Morning (${String(availability.morning)} slots available)\n` +
+      `2. Evening (${String(availability.evening)} slots available)\n\n` +
+      "Note: Please enter the word 'EXIT' to exit.";
+
     await sendWhatsAppText({
       to: userPhone,
-      body: "Please choose your preference:\n 1. Morning\n 2. Evening \n\nNote: Please enter the word 'EXIT' to exit.",
+      body: sessionMessage,
     });
+    // 👆 CHANGED SECTION END 👆
   }
 }
-
 async function handleRescheduleSession(
   session: AppointmentSession,
   userPhone: string,
@@ -1201,6 +1381,10 @@ export async function handleUserReply(
     await handleMainMenu(session, userPhone, message);
     return;
   }
+  if (session.state === "awaitingMenuKeyword") {
+    await handleAwaitingMenuKeyword(session, userPhone, message);
+    return;
+  }
   if (session.state === "awaitingName") {
     await handleAwaitName(session, userPhone, text);
     return;
@@ -1242,6 +1426,14 @@ export async function handleUserReply(
     await handleConfirmCancel(session, userPhone, message);
     return;
   }
+
+  // Fallback: unknown state → reset to main menu
+  try {
+    await updateSession(userPhone, { state: "mainMenu" });
+  } catch (err) {
+    console.error("updateSession error:", err);
+  }
+  await sendWhatsAppText({ to: userPhone, body: mainMenuMessage });
 }
 
 async function showAppointments(userPhone: string): Promise<void> {

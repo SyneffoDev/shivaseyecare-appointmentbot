@@ -45,7 +45,6 @@ async function getAvailableSlots(
   date: string,
   preference?: "morning" | "evening"
 ): Promise<string[]> {
-  // Helper: permissive slot parser that supports variations like "9 AM", "09:00 AM", "15:00"
   const parseSlotToDayjs = (slotStr: string): dayjs.Dayjs | null => {
     if (!slotStr || typeof slotStr !== "string") return null;
     const s = slotStr.trim();
@@ -61,7 +60,6 @@ async function getAvailableSlots(
 
   const canonicalFromDateTime = (dt: dayjs.Dayjs) => dt.format("h:mm A");
 
-  // Determine base slots (respect Sunday rule)
   const day = dayOfWeekLabel(date);
   let baseSlots: string[];
   if (day === "Sunday") {
@@ -74,7 +72,6 @@ async function getAvailableSlots(
     baseSlots = [...MorningSlots, ...EveningSlots];
   }
 
-  // Convert display date to ISO
   let isoDate: string;
   try {
     isoDate = toIsoDateFromDisplay(date);
@@ -88,10 +85,8 @@ async function getAvailableSlots(
   }
   const parsedSelectedDate = dayjs(isoDate).startOf("day");
 
-  // Get appointments on date from DB
   const appointmentsOnDate = await getAppointmentsByDate(isoDate);
 
-  // Build booked slots set
   const bookedSet = new Set<string>();
   for (const a of appointmentsOnDate) {
     const parsedAppt = parseSlotToDayjs(a.time);
@@ -106,7 +101,6 @@ async function getAvailableSlots(
     }
   }
 
-  // Use fixed timezone for "now"
   const now = dayjs().tz("Asia/Kolkata");
 
   const availableSlots: { label: string; dt: dayjs.Dayjs }[] = [];
@@ -141,8 +135,31 @@ async function getAvailableSlots(
   }
 
   availableSlots.sort((a, b) => a.dt.valueOf() - b.dt.valueOf());
+
+  // 🚨 If no slots remain, explicitly return []
+  if (availableSlots.length === 0) {
+    return [];
+  }
+
   return availableSlots.map((s) => s.label);
 }
+
+/*async function getSessionAvailability(date: string): Promise<{ morning: number; evening: number }> {
+  let morningSlots: string[] = [];
+  let eveningSlots: string[] = [];
+
+  try {
+    morningSlots = await getAvailableSlots(date, "morning");
+    eveningSlots = await getAvailableSlots(date, "evening");
+  } catch (err) {
+    console.error("getSessionAvailability error:", err);
+  }
+
+  return {
+    morning: morningSlots.length,
+    evening: eveningSlots.length,
+  };
+}*/
 
 const mainMenuMessage =
   "Hello! 👋 Welcome to Shivas Eye Care 🏥 \n" +

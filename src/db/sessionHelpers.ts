@@ -2,6 +2,7 @@ import db from "./client";
 import { eq, inArray } from "drizzle-orm";
 import { sessions } from "./schema";
 import type { AppointmentSession } from "../utils/types";
+import { sendWhatsAppText } from "../utils/whatsappAPI";
 
 export type Session = typeof sessions.$inferSelect;
 
@@ -64,4 +65,13 @@ export async function deleteExpiredSessions(): Promise<void> {
   await db
     .delete(sessions)
     .where(inArray(sessions.phoneNumber, expiredPhoneNumbers));
+
+  for (const phoneNumber of expiredPhoneNumbers) {
+    sendWhatsAppText({
+      to: phoneNumber,
+      body: "Your session has expired due to inactivity. Please send a message to view the main menu.",
+    }).catch((err: unknown) => {
+      console.error("sendWhatsAppText error:", err);
+    });
+  }
 }

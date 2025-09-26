@@ -273,6 +273,11 @@ async function handleMainMenu(
         to: userPhone,
         body: "Sorry, we couldn't check your appointment right now. Please try again later.\n\n Send a message to view the main menu.",
       });
+      try {
+        await deleteSession(userPhone);
+      } catch (err) {
+        console.error("deleteSession error:", err);
+      }
       return;
     }
     if (userAppt) {
@@ -301,6 +306,11 @@ async function handleMainMenu(
         to: userPhone,
         body: "No appointment found. Please book a new appointment. \n\nSend a message to view the main menu.",
       });
+      try {
+        await deleteSession(userPhone);
+      } catch (err) {
+        console.error("deleteSession error:", err);
+      }
     }
     return;
   }
@@ -315,6 +325,11 @@ async function handleMainMenu(
         to: userPhone,
         body: "Sorry, we couldn't check your appointment right now. Please try again later.\n\n Send a message to view the main menu.",
       });
+      try {
+        await deleteSession(userPhone);
+      } catch (err) {
+        console.error("deleteSession error:", err);
+      }
       return;
     }
     if (userAppt) {
@@ -337,6 +352,11 @@ async function handleMainMenu(
         to: userPhone,
         body: "No appointment found to cancel. \n\nSend a message to view the main menu.",
       });
+      try {
+        await deleteSession(userPhone);
+      } catch (err) {
+        console.error("deleteSession error:", err);
+      }
     }
     return;
   }
@@ -817,6 +837,11 @@ async function handleRescheduleNewDate(
         to: userPhone,
         body: "Sorry, we couldn't load available slots. Please try again later.\n\nSend a message to view the main menu.",
       });
+      try {
+        await deleteSession(userPhone);
+      } catch (err) {
+        console.error("deleteSession error:", err);
+      }
       return;
     }
     if (slots.length === 0) {
@@ -889,6 +914,11 @@ async function handleRescheduleSession(
       to: userPhone,
       body: "Sorry, we couldn't load available slots. Please try again later.\n\nSend a message to view the main menu.",
     });
+    try {
+      await deleteSession(userPhone);
+    } catch (err) {
+      console.error("deleteSession error:", err);
+    }
     return;
   }
   if (slots.length === 0) {
@@ -966,6 +996,11 @@ async function handleRescheduleNewTime(
 
         body: "Sorry, we couldn't load available slots. Please try again later.\n\nSend a message to view the main menu.",
       });
+      try {
+        await deleteSession(userPhone);
+      } catch (err) {
+        console.error("deleteSession error:", err);
+      }
       return;
     }
   }

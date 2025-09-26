@@ -1,6 +1,11 @@
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
 dayjs.extend(customParseFormat);
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
 import {
   dayOfWeekLabel,
   toIsoDateFromDisplay,
@@ -40,71 +45,103 @@ async function getAvailableSlots(
   date: string,
   preference?: "morning" | "evening"
 ): Promise<string[]> {
+  // Helper: permissive slot parser that supports variations like "9 AM", "09:00 AM", "15:00"
+  const parseSlotToDayjs = (slotStr: string): dayjs.Dayjs | null => {
+    if (!slotStr || typeof slotStr !== "string") return null;
+    const s = slotStr.trim();
+
+    const formats = ["h:mm A", "hh:mm A", "h A", "hh A", "H:mm", "HH:mm", "H"];
+    let parsed = dayjs(s, formats, true);
+    if (!parsed.isValid()) {
+      const withMinutes = s.replace(/\b(\d{1,2})\s*(AM|PM)\b/i, "$1:00 $2");
+      parsed = dayjs(withMinutes, formats, true);
+    }
+    return parsed.isValid() ? parsed : null;
+  };
+
+  const canonicalFromDateTime = (dt: dayjs.Dayjs) => dt.format("h:mm A");
+
+  // Determine base slots (respect Sunday rule)
   const day = dayOfWeekLabel(date);
   let baseSlots: string[];
-
-  // Sunday = only MorningSlots
   if (day === "Sunday") {
     baseSlots = MorningSlots;
+  } else if (preference === "morning") {
+    baseSlots = MorningSlots;
+  } else if (preference === "evening") {
+    baseSlots = EveningSlots;
   } else {
-    if (preference === "morning") {
-      baseSlots = MorningSlots;
-    } else if (preference === "evening") {
-      baseSlots = EveningSlots;
+    baseSlots = [...MorningSlots, ...EveningSlots];
+  }
+
+  // Convert display date to ISO
+  let isoDate: string;
+  try {
+    isoDate = toIsoDateFromDisplay(date);
+  } catch {
+    const parsedFallback = dayjs(date, "DD/MM/YYYY", true);
+    if (!parsedFallback.isValid()) {
+      console.error("[getAvailableSlots] invalid date input:", date);
+      return [];
+    }
+    isoDate = parsedFallback.format("YYYY-MM-DD");
+  }
+  const parsedSelectedDate = dayjs(isoDate).startOf("day");
+
+  // Get appointments on date from DB
+  const appointmentsOnDate = await getAppointmentsByDate(isoDate);
+
+  // Build booked slots set
+  const bookedSet = new Set<string>();
+  for (const a of appointmentsOnDate) {
+    const parsedAppt = parseSlotToDayjs(a.time);
+    if (parsedAppt) {
+      const apptDt = parsedSelectedDate
+        .hour(parsedAppt.hour())
+        .minute(parsedAppt.minute())
+        .second(0);
+      bookedSet.add(canonicalFromDateTime(apptDt));
     } else {
-      baseSlots = [...MorningSlots, ...EveningSlots];
+      bookedSet.add(normalizeTimeLabel(a.time));
     }
   }
 
-  const isoDate = toIsoDateFromDisplay(date);
-  let appointmentsOnDate: Appointment[];
-  try {
-    appointmentsOnDate = await getAppointmentsByDate(isoDate);
-  } catch (err) {
-    throw err;
-  }
+  // Use fixed timezone for "now"
+  const now = dayjs().tz("Asia/Kolkata");
 
-  const bookedSlots = appointmentsOnDate.map((a) =>
-    normalizeTimeLabel(a.time as unknown as string)
-  );
+  const availableSlots: { label: string; dt: dayjs.Dayjs }[] = [];
 
-  // ---- check if selected date is today ----
-  const parsedSelectedDate = dayjs(date, "DD/MM/YYYY", true);
-  const isToday = parsedSelectedDate.isValid()
-    ? parsedSelectedDate.isSame(dayjs(), "day")
-    : false;
+  for (const rawSlot of baseSlots) {
+    const parsedSlot = parseSlotToDayjs(rawSlot);
+    if (!parsedSlot) {
+      console.warn("[getAvailableSlots] skipping unparsable slot:", rawSlot);
+      continue;
+    }
 
-  if (isToday) {
-    const now = dayjs();
+    const slotDateTime = parsedSelectedDate
+      .hour(parsedSlot.hour())
+      .minute(parsedSlot.minute())
+      .second(0);
 
-    // filter only slots after "now"
-    const futureSlots = baseSlots.filter((slot) => {
-      // parse time only (hh:mm A)
-      const timePart = dayjs(slot, ["h:mm A"], true);
-      if (!timePart.isValid()) {
-        console.warn("[getAvailableSlots] Invalid time parse:", slot);
-        return false;
+    if (parsedSelectedDate.isSame(now, "day")) {
+      if (!slotDateTime.isAfter(now)) {
+        continue;
       }
+    }
 
-      // combine the exact date + slot time
-      const slotDateTime = parsedSelectedDate
-        .hour(timePart.hour())
-        .minute(timePart.minute())
-        .second(0);
+    const canonical = canonicalFromDateTime(slotDateTime);
+    if (
+      bookedSet.has(canonical) ||
+      bookedSet.has(normalizeTimeLabel(canonical))
+    ) {
+      continue;
+    }
 
-      return slotDateTime.isAfter(now);
-    });
-
-    // remove booked slots and return
-    return futureSlots.filter(
-      (slot) => !bookedSlots.includes(normalizeTimeLabel(slot))
-    );
+    availableSlots.push({ label: canonical, dt: slotDateTime });
   }
 
-  // ---- for future days: show all slots except booked ones ----
-  return baseSlots.filter(
-    (slot) => !bookedSlots.includes(normalizeTimeLabel(slot))
-  );
+  availableSlots.sort((a, b) => a.dt.valueOf() - b.dt.valueOf());
+  return availableSlots.map((s) => s.label);
 }
 
 const mainMenuMessage =
@@ -162,7 +199,7 @@ async function handleAwaitName(
     console.error("updateSession error:", err);
   }
   const dateMsg =
-    `Welcome, ${name}! Please choose a date from the next 7 days:\n` +
+    `Welcome, ${name}! Please choose a date from the next 7 days, reply with the slot option number:\n` +
     dateOptions
       .map((d, i) => `${String(i + 1)}. ${d} (${dayOfWeekLabel(d)})`)
       .join("\n");
@@ -235,7 +272,7 @@ async function handleMainMenu(
       }
 
       const dateMsg =
-        `Your current appointment:\n${formatDbDateWithDay(userAppt.date)} at ${userAppt.time}\n\nPlease choose a new date:\n ` +
+        `Your current appointment:\n${formatDbDateWithDay(userAppt.date)} at ${userAppt.time}\n\nPlease choose a new date, reply with the slot option number:\n\n` +
         dateOptions
           .map((d, i) => `${String(i + 1)}. ${d} (${dayOfWeekLabel(d)})`)
           .join("\n") +
@@ -431,7 +468,7 @@ async function handleAwaitingDate(
     }
     await sendWhatsAppText({
       to: userPhone,
-      body: "Please choose your preference:\n1. Morning\n2. Evening \n\nNote: Please enter the word 'EXIT' to exit.",
+      body: "Reply with the slot option number:\n1. Morning\n2. Evening \n\nNote: Please enter the word 'EXIT' to exit.",
     });
   }
 }
@@ -808,7 +845,7 @@ async function handleRescheduleNewDate(
     }
     await sendWhatsAppText({
       to: userPhone,
-      body: "Please choose your preference:\n 1. Morning\n 2. Evening \n\nNote: Please enter the word 'EXIT' to exit.",
+      body: "Reply with the slot option number:\n 1. Morning\n 2. Evening \n\nNote: Please enter the word 'EXIT' to exit.",
     });
   }
 }

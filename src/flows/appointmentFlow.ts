@@ -179,7 +179,7 @@ const mainMenuMessage =
   "2. Reschedule Appointment \n" +
   "3. Cancel Appointment \n" +
   "4. View Appointment Details \n" +
-  "5. Contact Support test";
+  "5. Contact Support";
 
 const contactDetails =
   "🏥 Shivas Eye Care Contact:\n" +
@@ -447,7 +447,7 @@ async function handleMainMenu(
   }
   await sendWhatsAppText({
     to: userPhone,
-    body: "Please choose a valid input and type 'menu' to view the main menu.",
+    body: "Please choose a valid option number. Type 'menu' to view the main menu.",
   });
 }
 

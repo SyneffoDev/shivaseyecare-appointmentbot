@@ -38,7 +38,9 @@ import { MorningSlots, EveningSlots } from "../utils/appointmentData";
 import { adminPhoneNumber } from "../utils/whatsappAPI";
 
 function normalizeTimeLabel(input: string): string {
-  return input.replace(/\s+/g, " ").trim().toUpperCase();
+  // This new version removes ALL whitespace, making the comparison rock-solid.
+  // e.g., "10:30 AM", "10:30am", and " 10:30 am " all become "10:30AM".
+  return input.replace(/\s+/g, "").toUpperCase();
 }
 
 async function getAvailableSlots(
@@ -87,18 +89,10 @@ async function getAvailableSlots(
 
   const appointmentsOnDate = await getAppointmentsByDate(isoDate);
 
+  // This simplified logic is correct and reliable.
   const bookedSet = new Set<string>();
   for (const a of appointmentsOnDate) {
-    const parsedAppt = parseSlotToDayjs(a.time);
-    if (parsedAppt) {
-      const apptDt = parsedSelectedDate
-        .hour(parsedAppt.hour())
-        .minute(parsedAppt.minute())
-        .second(0);
-      bookedSet.add(canonicalFromDateTime(apptDt));
-    } else {
-      bookedSet.add(normalizeTimeLabel(a.time));
-    }
+    bookedSet.add(normalizeTimeLabel(a.time));
   }
 
   const now = dayjs().tz("Asia/Kolkata");
@@ -124,10 +118,8 @@ async function getAvailableSlots(
     }
 
     const canonical = canonicalFromDateTime(slotDateTime);
-    if (
-      bookedSet.has(canonical) ||
-      bookedSet.has(normalizeTimeLabel(canonical))
-    ) {
+    // This check now uses the more robust normalizeTimeLabel
+    if (bookedSet.has(normalizeTimeLabel(canonical))) {
       continue;
     }
 
@@ -136,12 +128,30 @@ async function getAvailableSlots(
 
   availableSlots.sort((a, b) => a.dt.valueOf() - b.dt.valueOf());
 
-  // 🚨 If no slots remain, explicitly return []
   if (availableSlots.length === 0) {
     return [];
   }
 
   return availableSlots.map((s) => s.label);
+}
+
+async function getSessionAvailability(
+  date: string
+): Promise<{ morning: number; evening: number }> {
+  let morningSlots: string[] = [];
+  let eveningSlots: string[] = [];
+
+  try {
+    morningSlots = await getAvailableSlots(date, "morning");
+    eveningSlots = await getAvailableSlots(date, "evening");
+  } catch (err) {
+    console.error("getSessionAvailability error:", err);
+  }
+
+  return {
+    morning: morningSlots.length,
+    evening: eveningSlots.length,
+  };
 }
 
 /*async function getSessionAvailability(date: string): Promise<{ morning: number; evening: number }> {
@@ -186,6 +196,51 @@ async function handleExit(userPhone: string): Promise<void> {
     });
   } catch (err) {
     console.error("deleteSession error:", err);
+  }
+}
+
+// Add this new function to your file
+
+async function handleAwaitingMenuKeyword(
+  session: AppointmentSession,
+  userPhone: string,
+  message: string
+): Promise<void> {
+  // 1. Check if the user wants to see the menu
+  if (message === "menu") {
+    session.state = "mainMenu";
+    try {
+      await updateSession(userPhone, { state: "mainMenu" });
+    } catch (err) {
+      console.error("updateSession error:", err);
+    }
+    await sendWhatsAppText({
+      to: userPhone,
+      body: mainMenuMessage,
+    });
+    return;
+  }
+
+  // 2. Check if the user entered a valid main menu option directly
+  const isMainMenuOption =
+    ["1", "2", "3", "4", "5"].includes(message) ||
+    message.includes("book") ||
+    message.includes("reschedule") ||
+    message.includes("cancel") ||
+    message.includes("view") ||
+    message.includes("contact");
+
+  if (isMainMenuOption) {
+    // If they entered a valid option, let the main menu handler process it
+    session.state = "mainMenu";
+    await handleMainMenu(session, userPhone, message);
+  } else {
+    // 3. If the input is still invalid, repeat the prompt
+    await sendWhatsAppText({
+      to: userPhone,
+      body: "Invalid input. Please type 'menu' to see the options.",
+    });
+    // The state remains "awaitingMenuKeyword"
   }
 }
 
@@ -384,9 +439,15 @@ async function handleMainMenu(
     return;
   }
 
+  session.state = "awaitingMenuKeyword";
+  try {
+    await updateSession(userPhone, { state: "awaitingMenuKeyword" });
+  } catch (err) {
+    console.error("updateSession error:", err);
+  }
   await sendWhatsAppText({
     to: userPhone,
-    body: mainMenuMessage,
+    body: "Please choose a valid input and type 'menu' to view the main menu.",
   });
 }
 
@@ -491,6 +552,26 @@ async function handleAwaitingDate(
       "\n\nReply with the slot option number.\n\nNote: Please enter the word 'EXIT' to exit.";
     await sendWhatsAppText({ to: userPhone, body: slotsMsg });
   } else {
+    // 👇 CHANGED SECTION START 👇
+
+    // 1. Get the availability counts first
+    const availability = await getSessionAvailability(pickedDate);
+
+    // 2. Handle the edge case where no slots are available for the whole day
+    if (availability.morning === 0 && availability.evening === 0) {
+      await sendWhatsAppText({
+        to: userPhone,
+        body: `Sorry, no slots are available on ${pickedDate}. Please choose another date from the list.`,
+      });
+      // Keep the user in the same state to let them pick another date
+      session.state = "awaitingDate";
+      await updateSession(userPhone, {
+        state: "awaitingDate",
+      });
+      return;
+    }
+
+    // 3. Update the session state
     session.state = "awaitingSession";
     session.slotPreference = undefined;
     session.slotOptions = undefined;
@@ -503,10 +584,19 @@ async function handleAwaitingDate(
     } catch (err) {
       console.error("updateSession error:", err);
     }
+
+    // 4. Construct and send the new, more informative message
+    const sessionMessage =
+      "Please choose a session. Reply with the option number:\n" +
+      `1. Morning (${String(availability.morning)} slots available)\n` +
+      `2. Evening (${String(availability.evening)} slots available)\n\n` +
+      "Note: Please enter the word 'EXIT' to exit.";
+
     await sendWhatsAppText({
       to: userPhone,
-      body: "Reply with the slot option number:\n1. Morning\n2. Evening \n\nNote: Please enter the word 'EXIT' to exit.",
+      body: sessionMessage,
     });
+    // 👆 CHANGED SECTION END 👆
   }
 }
 
@@ -877,6 +967,25 @@ async function handleRescheduleNewDate(
       "\n\nReply with the slot option number.\n\nNote: Please enter the word 'EXIT' to exit.";
     await sendWhatsAppText({ to: userPhone, body: slotsMsg });
   } else {
+    // 👇 CHANGED SECTION START 👇
+
+    // 1. Get the availability counts
+    const availability = await getSessionAvailability(pickedDate);
+
+    // 2. Handle the edge case where no slots are available
+    if (availability.morning === 0 && availability.evening === 0) {
+      await sendWhatsAppText({
+        to: userPhone,
+        body: `Sorry, no slots are available on ${pickedDate}. Please choose another date from the list.`,
+      });
+      session.state = "rescheduleNewDate";
+      await updateSession(userPhone, {
+        state: "rescheduleNewDate",
+      });
+      return;
+    }
+
+    // 3. Update the session state
     session.state = "rescheduleSession";
     try {
       await updateSession(userPhone, {
@@ -885,13 +994,21 @@ async function handleRescheduleNewDate(
     } catch (err) {
       console.error("updateSession error:", err);
     }
+
+    // 4. Construct and send the new, more informative message
+    const sessionMessage =
+      "Please choose a session. Reply with the option number:\n" +
+      `1. Morning (${String(availability.morning)} slots available)\n` +
+      `2. Evening (${String(availability.evening)} slots available)\n\n` +
+      "Note: Please enter the word 'EXIT' to exit.";
+
     await sendWhatsAppText({
       to: userPhone,
-      body: "Reply with the slot option number:\n 1. Morning\n 2. Evening \n\nNote: Please enter the word 'EXIT' to exit.",
+      body: sessionMessage,
     });
+    // 👆 CHANGED SECTION END 👆
   }
 }
-
 async function handleRescheduleSession(
   session: AppointmentSession,
   userPhone: string,
@@ -1314,6 +1431,10 @@ export async function handleUserReply(
 
   if (session.state === "mainMenu") {
     await handleMainMenu(session, userPhone, message);
+    return;
+  }
+  if (session.state === "awaitingMenuKeyword") {
+    await handleAwaitingMenuKeyword(session, userPhone, message);
     return;
   }
   if (session.state === "awaitingName") {

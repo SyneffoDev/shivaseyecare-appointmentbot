@@ -4,6 +4,7 @@ export type AppointmentSessionState =
   | "awaitingDate"
   | "awaitingTime"
   | "awaitingConfirm"
+  | "awaitingMenuKeyword"
   | "rescheduleCheck"
   | "rescheduleNewDate"
   | "rescheduleNewTime"

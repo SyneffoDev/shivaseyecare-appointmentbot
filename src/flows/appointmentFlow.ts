@@ -154,6 +154,23 @@ async function getSessionAvailability(
   };
 }
 
+/*async function getSessionAvailability(date: string): Promise<{ morning: number; evening: number }> {
+  let morningSlots: string[] = [];
+  let eveningSlots: string[] = [];
+
+  try {
+    morningSlots = await getAvailableSlots(date, "morning");
+    eveningSlots = await getAvailableSlots(date, "evening");
+  } catch (err) {
+    console.error("getSessionAvailability error:", err);
+  }
+
+  return {
+    morning: morningSlots.length,
+    evening: eveningSlots.length,
+  };
+}*/
+
 const mainMenuMessage =
   "Hello! 👋 Welcome to Shivas Eye Care 🏥 \n" +
   "How can we assist you today? \n\n" +
@@ -162,7 +179,7 @@ const mainMenuMessage =
   "2. Reschedule Appointment \n" +
   "3. Cancel Appointment \n" +
   "4. View Appointment Details \n" +
-  "5. Contact Support ";
+  "5. Contact Support test";
 
 const contactDetails =
   "🏥 Shivas Eye Care Contact:\n" +
@@ -311,6 +328,11 @@ async function handleMainMenu(
         to: userPhone,
         body: "Sorry, we couldn't check your appointment right now. Please try again later.\n\n Send a message to view the main menu.",
       });
+      try {
+        await deleteSession(userPhone);
+      } catch (err) {
+        console.error("deleteSession error:", err);
+      }
       return;
     }
     if (userAppt) {
@@ -339,6 +361,11 @@ async function handleMainMenu(
         to: userPhone,
         body: "No appointment found. Please book a new appointment. \n\nSend a message to view the main menu.",
       });
+      try {
+        await deleteSession(userPhone);
+      } catch (err) {
+        console.error("deleteSession error:", err);
+      }
     }
     return;
   }
@@ -353,6 +380,11 @@ async function handleMainMenu(
         to: userPhone,
         body: "Sorry, we couldn't check your appointment right now. Please try again later.\n\n Send a message to view the main menu.",
       });
+      try {
+        await deleteSession(userPhone);
+      } catch (err) {
+        console.error("deleteSession error:", err);
+      }
       return;
     }
     if (userAppt) {
@@ -375,6 +407,11 @@ async function handleMainMenu(
         to: userPhone,
         body: "No appointment found to cancel. \n\nSend a message to view the main menu.",
       });
+      try {
+        await deleteSession(userPhone);
+      } catch (err) {
+        console.error("deleteSession error:", err);
+      }
     }
     return;
   }
@@ -890,6 +927,11 @@ async function handleRescheduleNewDate(
         to: userPhone,
         body: "Sorry, we couldn't load available slots. Please try again later.\n\nSend a message to view the main menu.",
       });
+      try {
+        await deleteSession(userPhone);
+      } catch (err) {
+        console.error("deleteSession error:", err);
+      }
       return;
     }
     if (slots.length === 0) {
@@ -989,6 +1031,11 @@ async function handleRescheduleSession(
       to: userPhone,
       body: "Sorry, we couldn't load available slots. Please try again later.\n\nSend a message to view the main menu.",
     });
+    try {
+      await deleteSession(userPhone);
+    } catch (err) {
+      console.error("deleteSession error:", err);
+    }
     return;
   }
   if (slots.length === 0) {
@@ -1066,6 +1113,11 @@ async function handleRescheduleNewTime(
 
         body: "Sorry, we couldn't load available slots. Please try again later.\n\nSend a message to view the main menu.",
       });
+      try {
+        await deleteSession(userPhone);
+      } catch (err) {
+        console.error("deleteSession error:", err);
+      }
       return;
     }
   }

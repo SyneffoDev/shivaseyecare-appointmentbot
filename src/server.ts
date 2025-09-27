@@ -21,7 +21,7 @@ const app = new Elysia()
   .use(
     cron({
       name: "deleteExpiredSessions",
-      pattern: "*/15 * * * *",
+      pattern: "*/30 * * * * *",
       timezone: "Asia/Kolkata",
       run: async () => {
         await deleteExpiredSessions();

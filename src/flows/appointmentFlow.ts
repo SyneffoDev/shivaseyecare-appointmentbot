@@ -85,7 +85,7 @@ async function getAvailableSlots(
     }
     isoDate = parsedFallback.format("YYYY-MM-DD");
   }
-  const parsedSelectedDate = dayjs(isoDate).startOf("day");
+  const parsedSelectedDate = dayjs.tz(isoDate, "Asia/Kolkata").startOf("day");
 
   const appointmentsOnDate = await getAppointmentsByDate(isoDate);
 
@@ -1268,6 +1268,12 @@ async function handleRescheduleCheck(
     } catch (err) {
       console.error("deleteSession error:", err);
     }
+    return;
+  } else {
+    await sendWhatsAppText({
+      to: userPhone,
+      body: "Invalid choice. Please reply with Yes or No. \n\nNote: Please enter the word 'EXIT' to exit.",
+    });
     return;
   }
 }

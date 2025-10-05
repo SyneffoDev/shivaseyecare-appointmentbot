@@ -126,6 +126,16 @@ app.post("/webhook", (c) => {
           const from = message.from;
           const type = message.type;
           const id = message.id;
+          const messageTimestamp = parseInt(message.timestamp);
+          if (
+            isNaN(messageTimestamp) ||
+            Date.now() - messageTimestamp * 1000 > 5 * 60 * 1000
+          ) {
+            console.log(
+              "[WhatsApp] Message timestamp is more than 5 minutes ago, skipping"
+            );
+            continue;
+          }
           const text =
             (type === "text" && message.text ? message.text.body : undefined) ||
             (type === "button" && message.button

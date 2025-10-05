@@ -27,6 +27,7 @@ export interface WebhookMessage {
   from?: string;
   type?: string;
   id?: string;
+  timestamp: string;
   text?: { body?: string };
   button?: { payload?: string; text?: string };
 }

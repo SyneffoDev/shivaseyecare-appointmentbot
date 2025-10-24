@@ -3,7 +3,7 @@ import { cron } from "@elysiajs/cron";
 
 import { handleUserReply } from "./flows/appointmentFlow";
 import { handleAdminReply } from "./flows/adminFlow";
-import { sendReminder, sendOneHourBeforeReminders } from "./utils/reminder";
+import { sendReminder } from "./utils/reminder";
 import dayjs from "dayjs";
 import type {
   WebhookBody,
@@ -45,16 +45,6 @@ const app = new Elysia()
       timezone: "Asia/Kolkata",
       run: async () => {
         await sendReminder(dayjs().add(1, "day").format("YYYY-MM-DD"));
-      },
-    })
-  )
-  .use(
-    cron({
-      name: "sendOneHourBeforeReminders",
-      pattern: "0 * * * * *",
-      timezone: "Asia/Kolkata",
-      run: async () => {
-        await sendOneHourBeforeReminders();
       },
     })
   );
